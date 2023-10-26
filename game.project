@@ -10,8 +10,9 @@ game_binding = /input/game.input_bindingc
 use_accelerometer = 0
 
 [display]
-width = 2560
-height = 1440
+width = 1920
+height = 1080
+high_dpi = 1
 
 [script]
 shared_state = 1
@@ -28,4 +29,7 @@ input_method = HiddenInputField
 [physics]
 gravity_y = -1000.0
 scale = 0.01
+
+[html5]
+show_made_with_defold = 0
 
