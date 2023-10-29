@@ -5,15 +5,15 @@ local bottom_edge = 100      -- Bottom edge.
 local boardwidth = 9        -- Number of columns
 local boardheight = 9       -- Number of rows
 local pathtiles = { 
-	{3,8},
-	{3,6,7,8},
-	{3,6},
-	{0,1,2,3,4,5,6},
-	{4,5,6},
+	{0,1,5,6,7,8},
+	{1,3,5},
+	{1,2,3,4,5,6,7},
+	{1,5,7},
+	{1,3,5,7},
+	{1,3,7},
 	{0,1,2,3,4,5,6,7,8},
-	{3,7,8},
-	{3},
-	{0,1,2,3}
+	{0,2,4,6},
+	{2,6}
 }
 local goodorbadplant = { hash("good-plant-placeholder"), hash("generic_bad_plant")}
 local turn = "move"
@@ -72,6 +72,9 @@ function init(self)
 	self.board = {}             -- Contains the board structure
 	self.blocks = {}            -- List of all blocks. Used for easy filtering on selection.
 	self.robots = {}
+	self.goodplants = {}
+	self.badplants = {}
+	self.emptyplots = {}
 	self.highlighted_block = {}
 	msg.post(".", "acquire_input_focus")
 	msg.post("#", "start_level")
@@ -122,6 +125,11 @@ local function build_board(self)
 			end
 			local id = factory.create("#tileFactory", pos, null, { plot_instance = plant })
 			self.board[y][x] = { id = id, plot_instance = plant,  x = x, y = y }
+			if plant == hash("good-plant-placeholder") then
+				table.insert(self.goodplants, id)
+			elseif plant == hash("generic_bad_plant") then
+				table.insert(self.badplants, id)
+			end
 		end
 	end
 
@@ -139,8 +147,8 @@ function has_value (array, val)
 	return false
 end
 
-function show_starting_info()
-
+function show_starting_info(self)
+	
 end
 
 function prepare_robots(self)
@@ -151,13 +159,13 @@ function prepare_robots(self)
 end
 
 function on_message(self, message_id, message, sender)
-	if message_id == hash("start_level") then
-		build_board(self)
-		show_starting_info()
-		prepare_robots(self)
-	elseif message_id == hash("change_turn") then
+	if message_id == hash("change_turn") then
 		turn = message.turn
 	elseif message_id == hash("delete main menu") then
 		go.delete("main_menu")
+		build_board(self)
+		prepare_robots(self)
+		
+		show_starting_info(self)
 	end
 end
