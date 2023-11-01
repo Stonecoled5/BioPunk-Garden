@@ -3,7 +3,7 @@ go.property("plot_instance", hash("none"))
 function init(self)
 
 	go.set_scale(1.5)
-	
+	go.set("#extraSprite", "tint.w", 0)
 	if self.plot_instance ~= nil then
 		sprite.play_flipbook("#sprite", self.plot_instance)
 	else
@@ -11,7 +11,16 @@ function init(self)
 	end
 end
 
--- function on_message()
--- 	if message_id == hash("highlight") then
--- 		sprite.play_flipbook("#sprite", hash("orange"))
--- end
+function on_message(self, message_id, message, sender)
+	if message_id == hash("show_shock") then
+		go.set("#extraSprite", "tint.w", 1)
+	elseif message_id == hash("hide_shock") then
+		go.set("#extraSprite", "tint.w", 0)
+	elseif message_id == hash("play_flipbook") then
+		if self.plot_instance ~= nil then
+			sprite.play_flipbook("#sprite", message.id)
+		else
+			msg.post("#sprite", "disable")
+		end
+	end		
+end

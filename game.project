@@ -1,6 +1,7 @@
 [project]
 title = Biopunk Garden
-dependencies = 
+dependencies#0 = https://github.com/subsoap/defos/archive/master.zip
+dependencies#1 = https://github.com/klaytonkowalski/library-defold-tilemap-animator/archive/master.zip
 
 [bootstrap]
 main_collection = /main/main.collectionc
@@ -32,4 +33,7 @@ scale = 0.01
 
 [html5]
 show_made_with_defold = 0
+
+[sprite]
+max_count = 200
 

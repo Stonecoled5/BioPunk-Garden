@@ -182,7 +182,7 @@ max_sound_sources = 16
 use_thread = 1
 
 [sprite]
-max_count = 128
+max_count = 200
 subpixels = 1
 
 [tilemap]

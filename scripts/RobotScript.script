@@ -4,13 +4,13 @@ go.property("sprite", hash("none"))
 function init(self)
 
 	go.set_scale(1.5)
-	
-	self.life = 1
-	self.movesLeft = 2
-	self.moveToPos = vmath.vector3(0,0,0)
-	--msg.post(".", "acquire_input_focus")
-	-- self.current_animation = hash("logo")
-	self.speed = vmath.vector3(0,0,0)
+	go.set("#itemSprite", "tint.w", 0)
+	if self.sprite ~= nil then
+		sprite.play_flipbook("#sprite", self.sprite)
+	else
+		msg.post("#sprite", "disable")
+	end
+	play_item_flipbook(self)
 end
 
 local function play_animation(self, animation)
@@ -20,3 +20,36 @@ local function play_animation(self, animation)
 	end
 end	
 
+function play_item_flipbook(self)
+	if self.item ~= hash("none") then
+		sprite.play_flipbook("#itemSprite", self.item)
+	else
+		go.set("#itemSprite", "tint.w", 0)
+	end
+end	
+
+-- function update(self, dt)
+-- 	print(go.get("#itemSprite", "tint.w"))
+-- end	
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("show") then
+		go.set("#sprite", "tint.w", 1)
+	elseif message_id == hash("hide") then
+		go.set("#sprite", "tint.w", 0)
+	elseif message_id == hash("hide_item") then
+		go.set("#itemSprite", "tint.w", 0)
+	elseif message_id == hash("show_item") then
+		if self.item ~= hash("none") then
+			go.set("#itemSprite", "tint.w", 1)
+			msg.post("#itemSprite", "enable")
+		end
+	elseif message_id == hash("switch_item") then
+		self.item = hash(message.item)
+		msg.post("#itemSprite", "enable")
+		play_item_flipbook(self)
+	elseif message_id == hash("remove_item") then
+		self.item = hash("none")
+		play_item_flipbook(self)		
+	end
+end
