@@ -15,6 +15,8 @@ function update(self, dt)
 	gui.set_text(gui.get_node("item1amount"),"x" .. num_pesticide)
 	gui.set_text(gui.get_node("item2amount"),"x" .. num_steroids)
 	gui.set_text(gui.get_node("item3amount"),"x" .. num_fertilizer)
+	gui.set_text(gui.get_node("numBadPlants"),"Bad Plants: " .. #badplants)
+	gui.set_text(gui.get_node("numGoodPlants"),"Good Plants: " .. #goodplants)
 end
 
 local function anim2(self, node)
@@ -29,7 +31,7 @@ function on_message(self, message_id, message, sender)
 	if message_id == hash("day") then
 		can_click = false
 		gui.set_alpha(gui.get_node("black_screen"), .5)
-		timer.delay(3.4, false, function(self)
+		timer.delay(3.5, false, function(self)
 			gui.set_alpha(gui.get_node("black_screen"), 0)
 			can_click = true
 		end)
@@ -38,7 +40,7 @@ function on_message(self, message_id, message, sender)
 		gui.animate(gui.get_node("largeDayCount"), gui.PROP_POSITION, vmath.vector3(900,540,1), gui.EASING_LINEAR, .7, 0,anim1)
 		gui.set_text(gui.get_node("dayCount"), "Day " .. day)
 	elseif message_id == hash("remove_item") then
-		gui.set_enabled(gui.get_node("robot" .. selected_robot_index .. "item"), false)
+		gui.set_alpha(gui.get_node("robot" .. selected_robot_index .. "item"), 0)
 		gui.set_enabled(gui.get_node("undoRobotItem" .. selected_robot_index), false)
 	elseif message_id == hash("darken_screen") then
 		print("darken screen")
@@ -59,6 +61,8 @@ function on_message(self, message_id, message, sender)
 		gui.set_enabled(gui.get_node("lost_box"), true)
 		gui.set_alpha(gui.get_node("main_menu"), 1)
 		gui.set_alpha(gui.get_node("lost_message"), 1)
+	elseif message_id == hash("clr_color") then
+		clear_color()
 	end
 end
 
@@ -100,27 +104,26 @@ function on_input(self, action_id, action)
 				selected_robot_index = 3
 				clear_color()
 				gui.set_color(gui.get_node("robot3Border"), vmath.vector3(1,1,1))
-			elseif gui.is_enabled(n) and gui.pick_node(gui.get_node("item1"), action.x, action.y) and 
+			elseif n and gui.is_enabled(n) and gui.pick_node(gui.get_node("item1"), action.x, action.y) and 
 			not (selected_robot_index == 0) and 
 			in_shed[selected_robot_index] and
 			num_pesticide > 0 then
 				set_robot_texture(n, nundo, "pesticide_placeholder")
-			elseif gui.is_enabled(n) and gui.pick_node(gui.get_node("item2"), action.x, action.y) and 
+			elseif n and gui.is_enabled(n) and gui.pick_node(gui.get_node("item2"), action.x, action.y) and 
 			not (selected_robot_index == 0) and 
 			in_shed[selected_robot_index] and
 			num_steroids > 0 then
 				set_robot_texture(n, nundo, "brassinosteroids-placeholder")
-			elseif gui.is_enabled(n) and gui.pick_node(gui.get_node("item3"), action.x, action.y) and 
+			elseif n and gui.is_enabled(n) and gui.pick_node(gui.get_node("item3"), action.x, action.y) and 
 			not (selected_robot_index == 0) and 
 			in_shed[selected_robot_index] and
 			num_fertilizer > 0 then
 				set_robot_texture(n, nundo, "fertilizer-placeholder")
-			elseif gui.is_enabled(nundo) and gui.pick_node(nundo, action.x, action.y) and 
+			elseif nundo and gui.is_enabled(nundo) and gui.pick_node(nundo, action.x, action.y) and 
 			not (selected_robot_index == 0) and 
 			in_shed[selected_robot_index] then
 				undo_robot_texture(n, nundo)
 			end
-			
 		elseif not can_click and (pause_clicked or end_of_game) then
 			if gui.pick_node(gui.get_node("main_menu_button"), action.x, action.y) then
 				msg.post("main:/controller", "show_menu")
@@ -150,6 +153,8 @@ function set_robot_texture(n, nundo, item)
 		replace_item_count(n)
 		num_fertilizer = num_fertilizer - 1
 	end	
+	robots[selected_robot_index].holding_item = true
+	robots[selected_robot_index].can_move = true
 	gui.set_enabled(n, true)
 	gui.set_enabled(nundo, true)
 	gui.set_texture(n, "main")
@@ -168,7 +173,6 @@ function replace_item_count(n)
 end	
 
 function undo_robot_texture(n, nundo)
-	print(gui.get_flipbook(n))
 	if gui.get_flipbook(n) == hash("pesticide_placeholder") then
 		num_pesticide = num_pesticide + 1
 	elseif gui.get_flipbook(n) == hash("brassinosteroids-placeholder") then
@@ -179,6 +183,8 @@ function undo_robot_texture(n, nundo)
 	msg.post("game:/board", "remove_item")
 	gui.set_enabled(nundo, false)
 	gui.set_alpha(n, 0)
+	robots[selected_robot_index].holding_item = false
+	robots[selected_robot_index].can_move = false
 end
 
 function on_reload(self)
