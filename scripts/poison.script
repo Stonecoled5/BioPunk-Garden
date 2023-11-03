@@ -1,3 +1,5 @@
+go.property("sprite", hash("none"))
 function init(self)
 	go.set(".", "position.z", 1)
+	sprite.play_flipbook("#sprite", hash("poisonProgectile"))
 end

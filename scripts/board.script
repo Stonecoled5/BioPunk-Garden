@@ -46,6 +46,7 @@ blocks = {}
 robots = {}
 highlighted_block = {}
 robot_items_left = {}
+poison_moving = false
 function init(self)
 	msg.post(".", "acquire_input_focus")
 	build_board(self)
@@ -103,11 +104,15 @@ function check_if_enemy_turn(self)
 		playable_move = true
 	end
 	if not playable_move then
-		turn = "enemy_turn"
-		check_if_win_day(self)
-		get_rid_of_shocks(self)
-		start_enemy_turn(self)
+		end_turn(self)
 	end	
+end	
+
+function end_turn(self)
+	turn = "enemy_turn"
+	check_if_win_day(self)
+	get_rid_of_shocks(self)
+	start_enemy_turn(self)
 end	
 
 function get_rid_of_shocks(self)
@@ -192,7 +197,6 @@ function on_input(self, action_id, action)
 					elseif board[y][x].plot_instance == hash("dirt-poisoned") then
 						texture = "dirt-placeholder"
 					end
-					print(texture)
 					update_plots_on_action(self, x, y, texture)
 				elseif can_use_steroids(self,x,y) and is_next_to_plot(self,x,y) then
 					update_plots_on_action(self, x, y, "good-plant-steroids-placeholder")
@@ -222,13 +226,13 @@ function update_highlights(self, x, y)
 		board[y][x].plot_instance == hash("explosive_plant_placeholder") or 
 		board[y][x].plot_instance == hash("poison_plant_placeholder"))
 		and is_robot_holding_item(self, "pesticide_placeholder", selected_robot_index) then
-			handle_highlight(self, "#plotHighlight", "plot", x, y)
+			handle_highlight(self, "#plotHighlight", "plot", x, y, p)
 		elseif (board[y][x].plot_instance == hash("dirt-placeholder") or board[y][x].plot_instance == hash("dirt-poisoned"))
 		and is_robot_holding_item(self, "fertilizer-placeholder", selected_robot_index) then
-			handle_highlight(self, "#plotHighlight", "plot", x, y)
+			handle_highlight(self, "#plotHighlight", "plot", x, y, p)
 		elseif board[y][x].plot_instance == hash("good-plant-placeholder")
 		and is_robot_holding_item(self, "brassinosteroids-placeholder", selected_robot_index) then
-			handle_highlight(self, "#plotHighlight", "plot", x, y)
+			handle_highlight(self, "#plotHighlight", "plot", x, y, p)
 		elseif board[y][x].plot_instance == hash("path-placeholder") then
 			if not highlighted_block.id then
 				if highlighted_block.id and highlighted_block.type == "plot" then
@@ -253,7 +257,7 @@ function update_highlights(self, x, y)
 	end
 end	
 
-function handle_highlight(self, factoryName, type, x, y)
+function handle_highlight(self, factoryName, type, x, y, p)
 	if not highlighted_block.id then 
 		if is_next_to_plot(self, x, y) then
 			if highlighted_block.id then
@@ -422,47 +426,68 @@ function prepare_robots(self)
 	robots[3] = {id = factory.create("#robotFactory", pos, null, { sprite = hash("greenRobot"), item = hash("none") }), moving = false, in_shed = true, can_move = false, turn_done = false, holding_item = false}
 end
 
-function os.sleep(sec)
-	local now = os.time() + sec
-	repeat until os.time() >= now
+function bad_guy_move(self, handle, time_elapsed)
+	if poison_moving then
+		timer.cancel(handle)
+		return
+	end	
+	self.index = self.index + 1
+	if self.index > #badplants then
+		timer.cancel(handle)
+		build_tilelist(self)
+		move_robots_back(self)
+		return
+	end
+	local tile = badplants[self.index]
+	if tile.plot_instance == hash("generic_bad_plant") then
+		local index
+		local bpcl = #badplantchoices
+		index = math.random(bpcl)
+		local new_bad_plant = badplantchoices[index]
+		tile.plot_instance = new_bad_plant
+		board[tile.y][tile.x].plot_instance = hash(new_bad_plant)
+		msg.post(tile.id, "play_animation", {id = hash(new_bad_plant)})
+	elseif tile.plot_instance == hash("poison_plant_placeholder") then
+		local gpi
+		if #goodplants > 0 then
+			print("poison created")
+			local length_of_gp = #goodplants
+			gpi = math.random(length_of_gp)
+			local goodplant = goodplants[gpi]
+			local target_p = go.get_position(goodplant.id)
+			create_highlight(self, "#enemyHighlight", target_p, "enemy", goodplant.x, goodplant.y)
+			poison_plant_pos = go.get_position(tile.id)
+			local poison = {id = factory.create("#poisonFactory", vmath.vector3(poison_plant_pos.x, poison_plant_pos.y, 0))}
+			go.animate(poison.id, "position", go.PLAYBACK_ONCE_FORWARD, target_p, go.EASING_LINEAR, 2, 0, function() poison_done_moving(self, poison, goodplant) end)	
+			poison_moving = true		
+		end
+	elseif tile.plot_instance == hash("electric-plant-placeholder") then
+		msg.post(tile.id, "show_shock")
+		msg.post(tile.id, "rotate_shock")
+		timer.delay(1, false, function(self)
+			electric_plant_done(tile, self)
+		end)
+	elseif tile.plot_instance == hash("explosive_plant_placeholder") then
+		--dtile.init({ sequence = { 1,2,3,4,5,6,7,8 }, trigger = true, frequency = 30, reset = true}, "/explosion", "explosion")
+		timer.delay(.5, false, function(self)
+			clear_out_plot(self, tile)
+		end)
+	end
+	if self.index == #badplants then
+		timer.cancel(handle)
+		build_tilelist(self)
+		move_robots_back(self)
+	end
 end
 
 function start_enemy_turn(self)
 	math.randomseed(os.time())
 	delete_highlight(self)
 	local d = 1.5
-	for i, tile in ipairs(badplants) do
-		os.sleep(1)
-		if tile.plot_instance == hash("generic_bad_plant") then
-			local index
-			local bpcl = #badplantchoices
-			index = math.random(bpcl)
-			local new_bad_plant = badplantchoices[index]
-			tile.plot_instance = new_bad_plant
-			board[tile.y][tile.x].plot_instance = hash(new_bad_plant)
-			msg.post(tile.id, "play_animation", {id = hash(new_bad_plant)})
-		elseif tile.plot_instance == hash("poison_plant_placeholder") then
-			local gpi
-			if #goodplants > 0 then
-				gpi = math.random(length_of_gp)
-				local goodplant = goodplants[gpi]
-				local p = go.get_position(goodplant.id)
-				create_highlight(self, "#enemyHighlight", p, "enemy", goodplant.x, goodplant.y)
-				local poison = {id = factory.create("#poisonFactory", vmath.vector3(tile.x, tile.y, 0), null, { sprite = hash("poisonProgectile")})}
-				go.animate(poison.id, "position", go.PLAYBACK_ONCE_FORWARD, p, go.EASING_LINEAR, 1.3, 0, poison_done_moving(self, poison, goodplant))			
-			end
-		elseif tile.plot_instance == hash("electric-plant-placeholder") then
-			msg.post(tile.id, "show_shock")
-			go.animate(tile.id, "euler.z", go.PLAYBACK_ONCE_FORWARD, 3, go.EASING_LINEAR, .4, 0, electric_plant_done(tile, self))
-		elseif tile.plot_instance == hash("explosive_plant_placeholder") then
-			--dtile.init({ sequence = { 1,2,3,4,5,6,7,8 }, trigger = true, frequency = 30, reset = true}, "/explosion", "explosion")
-			timer.delay(.5, false, function(self)
-				clear_out_plot(self, tile)
-			end)	
-		end	
-	end
-	build_tilelist(self)
-	move_robots_back(self)
+	self.epi = 0
+	poison_moving = false
+	msg.post("game:/infoGUI", "darken_screen")
+	timer.delay(.5, true, grow_plants_overnight)
 end	
 
 function move_robots_back(self)
@@ -474,13 +499,15 @@ function move_robots_back(self)
 		end
 	end
 	selected_robot_index = 0
-	msg.post("game:/infoGUI", "darken_screen")
-	grow_plants_overnight(self)
+	check_if_win_night(self)
+	next_day(self)
 end	
 
-function grow_plants_overnight(self)
+function grow_plants_overnight(self, handle, time_elapsed)
 	math.randomseed(os.time())
-	for i, empty in ipairs(emptyplots) do
+	self.epi = self.epi + 1
+	if #emptyplots > 0 then
+		local empty = emptyplots[self.epi]
 		if empty.plot_instance == hash("dirt-placeholder") then
 			local gbpi 
 			gdpi = math.random(#goodorbadplant)
@@ -488,7 +515,7 @@ function grow_plants_overnight(self)
 			empty.plot_instance = plant
 			board[empty.y][empty.x].plot_instance = plant
 			timer.delay(.2, false, function(self)
-				msg.post(board[space.y][space.x].id, "play_animation", {id = hash("dirt-placeholder")})
+				msg.post(board[empty.y][empty.x].id, "play_animation", {id = hash("dirt-placeholder")})
 			end)
 		elseif empty.plot_instance == hash("dirt-poisoned") then
 			empty.plot_instance = hash("generic_bad_plant")
@@ -504,8 +531,12 @@ function grow_plants_overnight(self)
 			end)
 		end
 	end	
-	check_if_win_night(self)
-	next_day(self)
+	if self.epi == #emptyplots or #emptyplots == 0 then
+		timer.cancel(handle)
+		build_tilelist(self)
+		self.index = 0
+		timer.delay(.5, true, bad_guy_move)
+	end
 end	
 
 function check_if_win_day(self)
@@ -556,24 +587,22 @@ function next_day(self)
 end	
 
 function poison_done_moving(self, poison, goodplant)
-	print("deleting")
+	print("poison done moving")
+	poison_moving = false
 	go.delete(poison.id)
 	goodplant.plot_instance = hash("dirt-poisoned")
 	board[goodplant.y][goodplant.x].plot_instance = hash("dirt-poisoned")
 	msg.post(goodplant.id, "play_animation", {id = hash("dirt-poisoned")})
 	delete_highlight(self)
+	timer.delay(.5, true, bad_guy_move)
 end	
 
 function electric_plant_done(tile, self)
-	go.animate(tile.id, "euler.z", go.PLAYBACK_ONCE_FORWARD, -3, go.EASING_LINEAR, .6, 0)
-	timer.delay(.6, false, function(self) 
-		msg.post(tile.id, "hide_shock")
-		for i, robot in ipairs(robots) do
-			if any_robots_in_viscinity(robot, tile) then
-				msg.post(robot.id, "switch_item", {item="stunEffect"})
-			end
+	for i, robot in ipairs(robots) do
+		if any_robots_in_viscinity(robot, tile) then
+			msg.post(robot.id, "switch_item", {item="stunEffect"})
 		end
-	end)
+	end
 end	
 
 function clear_out_plot(self, tile)
@@ -613,6 +642,8 @@ function on_message(self, message_id, message, sender)
 		turn = message.turn
 	elseif message_id == hash("can_click") then
 		can_click = message.bool
+	elseif message_id == hash("end_turn") then
+		end_turn(self)
 	elseif message_id == hash("item_selected") then
 		if robots[selected_robot_index] then 
 			local robot_x = go.get_position(robots[selected_robot_index].id).x

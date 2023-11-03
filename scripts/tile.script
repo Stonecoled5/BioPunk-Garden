@@ -3,6 +3,7 @@ go.property("plot_instance", hash("none"))
 function init(self)
 
 	go.set_scale(1.5)
+	sprite.play_flipbook("#extraSprite", hash("shocking"))
 	go.set("#extraSprite", "tint.w", 0)
 	if self.plot_instance ~= nil then
 		sprite.play_flipbook("#sprite", self.plot_instance)
@@ -11,11 +12,30 @@ function init(self)
 	end
 end
 
+function play_shock()
+	sprite.play_flipbook("#extraSprite", hash("shocking"))
+	go.animate("#extraSprite", "scale", go.PLAYBACK_ONCE_FORWARD, vmath.vector3(.9,.9,.9), go.EASING_LINEAR, .2, 0, rotate_shock1)
+end	
+
+function rotate_shock1()
+	go.animate("#extraSprite", "scale", go.PLAYBACK_ONCE_FORWARD, vmath.vector3(1.1,1.1,1.1), go.EASING_LINEAR, .4, 0, rotate_shock2)
+end	
+
+function rotate_shock2()
+	go.animate("#extraSprite", "scale", go.PLAYBACK_ONCE_FORWARD, vmath.vector3(1,1,1), go.EASING_LINEAR, .2, 0, hide_shock)
+end	
+
+function hide_shock()
+	go.set("#extraSprite", "tint.w", 0)
+end	
+
 function on_message(self, message_id, message, sender)
 	if message_id == hash("show_shock") then
 		go.set("#extraSprite", "tint.w", 1)
+	elseif message_id == hash("rotate_shock") then
+		play_shock()
 	elseif message_id == hash("hide_shock") then
-		go.set("#extraSprite", "tint.w", 0)
+		hide_shock()
 	elseif message_id == hash("play_flipbook") then
 		if self.plot_instance ~= nil then
 			sprite.play_flipbook("#sprite", message.id)
