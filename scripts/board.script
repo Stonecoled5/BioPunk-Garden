@@ -5,9 +5,10 @@ local edge = 100             -- Left and right edge.
 local bottom_edge = 100      -- Bottom edge.
 local boardwidth = 9        -- Number of columns
 local boardheight = 9       -- Number of rows
-day = 0
+day = 1
 end_of_game = false
-local can_click = true
+can_click = true
+robot_is_moving = false
 local pathtiles = { 
 	{0,1,5,6,7,8},
 	{1,3,5},
@@ -20,12 +21,12 @@ local pathtiles = {
 	{2,6}
 }
 local plots = { 
-	plot1 = {{x=1,y=2},{x=1,y=3},{x=1,y=4},{x=1,y=5},{x=1,y=6}},
-	plot2 = {{x=3,y=1},{x=3,y=2},{x=4,y=1},{x=5,y=1},{x=5,y=2}},
-	plot3 = {{x=3,y=6},{x=3,y=5},{x=3,y=4},{x=4,y=4},{x=5,y=4},{x=5,y=5},{x=5,y=6},{x=6,y=6},{x=7,y=6},{x=7,y=5},{x=7,y=4}},
-	plot4 = {{x=7,y=2},{x=8,y=2},{x=9,y=2},{x=9,y=3},{x=9,y=4},{x=9,y=5},{x=9,y=6}},
-	plot5 = {{x=1,y=9},{x=2,y=9},{x=2,y=8}},
-	plot6 = {{x=4,y=8},{x=4,y=9},{x=5,y=9},{x=6,y=9},{x=6,y=8}}
+	{{x=0,y=1},{x=0,y=2},{x=0,y=3},{x=0,y=4},{x=0,y=5}},
+	{{x=2,y=0},{x=2,y=1},{x=3,y=0},{x=4,y=0},{x=4,y=1}},
+	{{x=2,y=5},{x=2,y=4},{x=2,y=3},{x=3,y=3},{x=4,y=3},{x=4,y=4},{x=4,y=5},{x=5,y=5},{x=6,y=5},{x=6,y=4},{x=6,y=3}},
+	{{x=6,y=1},{x=7,y=1},{x=8,y=1},{x=8,y=2},{x=8,y=3},{x=8,y=4},{x=8,y=5}},
+	{{x=0,y=8},{x=1,y=8},{x=1,y=7}},
+	{{x=3,y=7},{x=3,y=8},{x=4,y=8},{x=5,y=8},{x=5,y=7}}
 }
 local goodorbadplant = { hash("good-plant-placeholder"), hash("generic_bad_plant")}
 local badplantchoices = { hash("poison_plant_placeholder"), hash("electric-plant-placeholder"), hash("explosive_plant_placeholder")} 
@@ -47,6 +48,7 @@ robots = {}
 highlighted_block = {}
 robot_items_left = {}
 poison_moving = false
+
 function init(self)
 	msg.post(".", "acquire_input_focus")
 	build_board(self)
@@ -83,6 +85,11 @@ function update(self, dt)
 	if turn == "move" then
 		check_if_enemy_turn(self)
 	end
+	for l, robot in ipairs(robots) do
+		if robot.stunned then
+			robot.can_move = false
+		end
+	end
 end
 
 function check_if_enemy_turn(self)
@@ -110,18 +117,9 @@ end
 
 function end_turn(self)
 	turn = "enemy_turn"
+	can_click = false
 	check_if_win_day(self)
-	get_rid_of_shocks(self)
 	start_enemy_turn(self)
-end	
-
-function get_rid_of_shocks(self)
-	for i, robot in ipairs(robots) do
-		if is_robot_holding_item(self, "stunEffect", i) then
-			msg.post(robot.id, "hide_item")
-			msg.post(robot.id, "switch_item", {item=hash("x")})
-		end
-	end	
 end	
 
 function any_robots_have_item(self, item)
@@ -155,10 +153,7 @@ local function build_tilelist(self)
 			table.insert(self.tiles, { id = b.id, plot_instance = b.plot_instance, x = b.x, y = b.y })
 			if b.plot_instance == hash("good-plant-placeholder") then
 				table.insert(goodplants, { id = b.id, plot_instance = b.plot_instance, x = b.x, y = b.y })
-			elseif b.plot_instance == hash("electric-plant-placeholder") or 
-			b.plot_instance == hash("generic_bad_plant") or 
-			b.plot_instance == hash("explosive_plant_placeholder") or
-			b.plot_instance == hash("poison_plant_placeholder") then
+			elseif is_bad_plant(self, b.x, b.y) then
 				table.insert(badplants, { id = b.id, plot_instance = b.plot_instance, x = b.x, y = b.y })
 			elseif b.plot_instance == hash("dirt-placeholder") or 
 			b.plot_instance == hash("dirt-poisoned") or 
@@ -179,15 +174,14 @@ function on_input(self, action_id, action)
 			
 		end
 	end
-	if action_id == hash("touch") and action.pressed and can_click then
+	if action_id == hash("touch") and action.pressed and can_click and not robot_is_moving then
 		if turn == "move" then
 			if board and board[y] and board[y][x] then
 				if (board[y][x].plot_instance == hash("path-placeholder") 
 					or is_on_shed(self,x,y))
 					and robots[selected_robot_index] 
-					and not (robots[selected_robot_index]).moving then
-					robots[selected_robot_index].moving = true
-					move_robot(self, board[y][x])
+					and not robots[selected_robot_index].moving then
+						move_robot(self, board[y][x], robots[selected_robot_index])
 				elseif can_use_pesticide(self,x,y) and is_next_to_plot(self,x,y) then
 					update_plots_on_action(self, x, y, "dirt-placeholder")
 				elseif can_use_fertilizer(self,x,y) and is_next_to_plot(self,x,y) then
@@ -204,7 +198,6 @@ function on_input(self, action_id, action)
 			end	
 		end
 	end
-	build_tilelist(self)
 end
 
 function update_plots_on_action(self, x, y, texture)
@@ -215,16 +208,14 @@ function update_plots_on_action(self, x, y, texture)
 	robots[selected_robot_index].can_move = false
 	robots[selected_robot_index].turn_done = true
 	msg.post("game:/infoGUI", "remove_item")
+	build_tilelist(self)
 	delete_highlight(self)
 end	
 
 function update_highlights(self, x, y)
 	if board and board[y] and board[y][x] and robots[selected_robot_index] then
 		p = go.get_position(board[y][x].id)
-		if (board[y][x].plot_instance == hash("generic_bad_plant") or 
-		board[y][x].plot_instance == hash("electric-plant-placeholder") or 
-		board[y][x].plot_instance == hash("explosive_plant_placeholder") or 
-		board[y][x].plot_instance == hash("poison_plant_placeholder"))
+		if is_bad_plant(self, x, y)
 		and is_robot_holding_item(self, "pesticide_placeholder", selected_robot_index) then
 			handle_highlight(self, "#plotHighlight", "plot", x, y, p)
 		elseif (board[y][x].plot_instance == hash("dirt-placeholder") or board[y][x].plot_instance == hash("dirt-poisoned"))
@@ -293,10 +284,7 @@ end
 
 function can_use_pesticide(self,x,y)
 	return is_robot_holding_item(self, "pesticide_placeholder", selected_robot_index) and 
-	(board[y][x].plot_instance == hash("electric-plant-placeholder") or 
-	board[y][x].plot_instance == hash("generic_bad_plant") or
-	board[y][x].plot_instance == hash("explosive_plant_placeholder") or 
-	board[y][x].plot_instance == hash("poison_plant_placeholder"))
+	is_bad_plant(self, x, y)
 end	
 
 function can_use_fertilizer(self,x,y)
@@ -322,14 +310,16 @@ end
 
 local function moved_to_position(robot)
 	robot.moving = false
+	robot_is_moving = false
 end
 
-function move_robot(self, to_tile)
-	local robot = robots[selected_robot_index]
-	if robot.can_move then
+function move_robot(self, to_tile, robot)
+	if robot.can_move and not robot.moving then
+		robot_is_moving = true
+		robot.moving = true
 		local tile_pos = go.get_position(to_tile.id)
 		local pos = vmath.vector3(tile_pos.x, tile_pos.y, .5)
-		go.animate(robot.id, "position", go.PLAYBACK_ONCE_FORWARD, pos, go.EASING_LINEAR, 1.5, 0, moved_to_position(robot))
+		go.animate(robot.id, "position", go.PLAYBACK_ONCE_FORWARD, pos, go.EASING_LINEAR, 1.5, 0, function() moved_to_position(robot) end)
 	end
 end
 
@@ -388,6 +378,12 @@ function build_board(self)
 	build_tilelist(self)
 end
 
+function is_bad_plant(self,x,y)
+	return (board[y][x].plot_instance == hash("electric-plant-placeholder") or 
+	board[y][x].plot_instance == hash("generic_bad_plant") or
+	board[y][x].plot_instance == hash("explosive_plant_placeholder") or 
+	board[y][x].plot_instance == hash("poison_plant_placeholder"))
+end
 
 function is_on_shed(self,x,y)
 	return (board[y][x].plot_instance == hash("shed_first_version_1") or 
@@ -407,9 +403,7 @@ function has_value (array, val)
 end
 
 function show_day()
-	can_click = false
 	msg.post("game:/infoGUI", "day")
-	day = day + 1
 	timer.delay(3.5, false, function(self)
 		can_click = true
 	end)
@@ -421,12 +415,13 @@ end
 
 function prepare_robots(self)
 	local pos = vmath.vector3(900,900,0)
-	robots[1] = {id = factory.create("#robotFactory", pos, null, { sprite = hash("robot"), item = hash("none") }), moving = false, in_shed = true, can_move = false, turn_done = false, holding_item = false}
-	robots[2] = {id = factory.create("#robotFactory", pos, null, { sprite = hash("blueRobot"), item = hash("none") }), moving = false, in_shed = true, can_move = false, turn_done = false, holding_item = false}
-	robots[3] = {id = factory.create("#robotFactory", pos, null, { sprite = hash("greenRobot"), item = hash("none") }), moving = false, in_shed = true, can_move = false, turn_done = false, holding_item = false}
+	robots[1] = {id = factory.create("#robotFactory", pos, null, { sprite = hash("robot"), item = hash("none") }), moving = false, in_shed = true, can_move = false, turn_done = false, holding_item = false, stunned = false, handle = nil}
+	robots[2] = {id = factory.create("#robotFactory", pos, null, { sprite = hash("blueRobot"), item = hash("none") }), moving = false, in_shed = true, can_move = false, turn_done = false, holding_item = false, stunned = false, handle = nil}
+	robots[3] = {id = factory.create("#robotFactory", pos, null, { sprite = hash("greenRobot"), item = hash("none") }), moving = false, in_shed = true, can_move = false, turn_done = false, holding_item = false, stunned = false, handle = nil}
 end
 
 function bad_guy_move(self, handle, time_elapsed)
+	math.randomseed(os.time())
 	if poison_moving then
 		timer.cancel(handle)
 		return
@@ -434,8 +429,9 @@ function bad_guy_move(self, handle, time_elapsed)
 	self.index = self.index + 1
 	if self.index > #badplants then
 		timer.cancel(handle)
-		build_tilelist(self)
-		move_robots_back(self)
+		msg.post("game:/infoGUI", "darken_screen")
+		self.epi = 0
+		timer.delay(.5, true, grow_plants_overnight)
 		return
 	end
 	local tile = badplants[self.index]
@@ -450,7 +446,6 @@ function bad_guy_move(self, handle, time_elapsed)
 	elseif tile.plot_instance == hash("poison_plant_placeholder") then
 		local gpi
 		if #goodplants > 0 then
-			print("poison created")
 			local length_of_gp = #goodplants
 			gpi = math.random(length_of_gp)
 			local goodplant = goodplants[gpi]
@@ -464,38 +459,42 @@ function bad_guy_move(self, handle, time_elapsed)
 	elseif tile.plot_instance == hash("electric-plant-placeholder") then
 		msg.post(tile.id, "show_shock")
 		msg.post(tile.id, "rotate_shock")
-		timer.delay(1, false, function(self)
+		timer.delay(.8, false, function(self)
 			electric_plant_done(tile, self)
 		end)
 	elseif tile.plot_instance == hash("explosive_plant_placeholder") then
-		--dtile.init({ sequence = { 1,2,3,4,5,6,7,8 }, trigger = true, frequency = 30, reset = true}, "/explosion", "explosion")
+		msg.post(tile.id, "play_explosion")
 		timer.delay(.5, false, function(self)
 			clear_out_plot(self, tile)
 		end)
 	end
-	if self.index == #badplants then
-		timer.cancel(handle)
-		build_tilelist(self)
-		move_robots_back(self)
-	end
 end
 
 function start_enemy_turn(self)
-	math.randomseed(os.time())
 	delete_highlight(self)
-	local d = 1.5
-	self.epi = 0
+	self.index = 0
 	poison_moving = false
-	msg.post("game:/infoGUI", "darken_screen")
-	timer.delay(.5, true, grow_plants_overnight)
+	check_if_previously_stunned()
+	timer.delay(.6, true, bad_guy_move)
 end	
 
+function check_if_previously_stunned()
+	for y, robot in ipairs(robots) do
+		if robot.stunned then
+			robot.stunned = false
+			msg.post(robot.id, "remove_item")
+		end	
+	end	
+end
+
+	
+
 function move_robots_back(self)
-	for i=1,3 do
+	for i=1,#robots do
 		selected_robot_index = i
-		if not is_robot_holding_item(self, "stunEffect", i) then
+		if not robots[i].stunned then
 			robots[i].can_move = true
-			move_robot(self, board[boardheight-1][boardwidth-1])
+			move_robot(self, board[boardheight-1][boardwidth-1], robots[i])
 		end
 	end
 	selected_robot_index = 0
@@ -534,8 +533,7 @@ function grow_plants_overnight(self, handle, time_elapsed)
 	if self.epi == #emptyplots or #emptyplots == 0 then
 		timer.cancel(handle)
 		build_tilelist(self)
-		self.index = 0
-		timer.delay(.5, true, bad_guy_move)
+		move_robots_back(self)
 	end
 end	
 
@@ -566,15 +564,16 @@ function lost(self)
 end		
 
 function next_day(self)
+	day = day + 1
 	show_day()
 	num_pesticide = 1
 	num_steroids = 1
 	num_fertilizer = 1
 	for i, robot in ipairs(robots) do
 		robot.moving = false
-		if not is_robot_holding_item(self, "stunEffect", i) then
+		if not robot.stunned then
 			robot.in_shed = true
-			robot.can_move = true
+			robot.can_move = false
 			robot.turn_done = false
 		else
 			robot.in_shed = false
@@ -583,23 +582,30 @@ function next_day(self)
 		end
 	end	
 	msg.post("game:/infoGUI", "clr_color")
+	msg.post("game:/infoGUI", "reset_items")
 	turn = "move"
 end	
 
 function poison_done_moving(self, poison, goodplant)
-	print("poison done moving")
 	poison_moving = false
 	go.delete(poison.id)
-	goodplant.plot_instance = hash("dirt-poisoned")
+	local idx
+	for t, plant in ipairs(goodplants) do
+		if plant.id == goodplant.id then
+			idx = t
+		end
+	end
+	table.remove(goodplants,idx)
 	board[goodplant.y][goodplant.x].plot_instance = hash("dirt-poisoned")
 	msg.post(goodplant.id, "play_animation", {id = hash("dirt-poisoned")})
 	delete_highlight(self)
-	timer.delay(.5, true, bad_guy_move)
+	timer.delay(.6, true, bad_guy_move)
 end	
 
 function electric_plant_done(tile, self)
 	for i, robot in ipairs(robots) do
 		if any_robots_in_viscinity(robot, tile) then
+			robots[i].stunned = true
 			msg.post(robot.id, "switch_item", {item="stunEffect"})
 		end
 	end
@@ -614,26 +620,38 @@ function clear_out_plot(self, tile)
 			end	
 		end	
 		if clear_plot then
-			for k, space in ipairs(plot) do
-				space.plot_instance = hash("dirt-placeholder")
-				board[space.y][space.x].plot_instance = hash("dirt-placeholder")
-				msg.post(board[space.y][space.x].id, "play_animation", {id = hash("dirt-placeholder")})
+			for k, plot_space in ipairs(plot) do
+				for u, bPlant in ipairs(badplants) do
+					if bPlant.id == board[plot_space.y][plot_space.x].id then
+						table.remove(badplants,u)
+						if (plot_space.y ~= tile.y or plot_space.x ~= tile.x) and is_bad_plant(self, plot_space.x, plot_space.y)then
+							self.index = self.index-1
+						end
+						break
+					end	
+				end	
+				board[plot_space.y][plot_space.x].plot_instance = hash("dirt-placeholder")
+				msg.post(board[plot_space.y][plot_space.x].id, "play_animation", {id = hash("dirt-placeholder")})
 			end	
+			break
 		end	
 	end
 end	
 
 function any_robots_in_viscinity(robot, tile)
-	if (robot.x == tile.x + 1 and robot.y == tile.y) or 
-		(robot.x == tile.x - 1 and robot.y == tile.y) or 
-		(robot.y == tile.y + 1 and robot.x == tile.x) or 
-		(robot.y == tile.y - 1 and robot.x == tile.x) or
-		(robot.y == tile.y + 1 and robot.x == tile.x + 1) or
-		(robot.y == tile.y - 1 and robot.x == tile.x - 1) or
-		(robot.y == tile.y + 1 and robot.x == tile.x - 1) or
-		(robot.y == tile.y - 1 and robot.x == tile.x + 1) then
-			return true
-		end
+	local pos = go.get_position(robot.id)
+	local robx = math.floor((pos.x - edge) / blocksize)
+	local roby = math.floor((pos.y - bottom_edge) / blocksize)
+	if (robx == tile.x + 1 and roby == tile.y) or 
+		(robx == tile.x - 1 and roby == tile.y) or 
+		(roby == tile.y + 1 and robx == tile.x) or 
+		(roby == tile.y - 1 and robx == tile.x) or
+		(roby == tile.y + 1 and robx == tile.x + 1) or
+		(roby == tile.y - 1 and robx == tile.x - 1) or
+		(roby == tile.y + 1 and robx == tile.x - 1) or
+		(roby == tile.y - 1 and robx == tile.x + 1) then
+		return true
+	end
 	return false	
 end	
 

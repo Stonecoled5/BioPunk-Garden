@@ -28,10 +28,6 @@ function play_item_flipbook(self)
 	end
 end	
 
--- function update(self, dt)
--- 	print(go.get("#itemSprite", "tint.w"))
--- end	
-
 function on_message(self, message_id, message, sender)
 	if message_id == hash("show") then
 		go.set("#sprite", "tint.w", 1)
@@ -48,6 +44,9 @@ function on_message(self, message_id, message, sender)
 		self.item = hash(message.item)
 		msg.post("#itemSprite", "enable")
 		play_item_flipbook(self)
+	-- elseif message_id == hash("flip_bot") then
+	-- 	print("flip")
+	-- 	sprite.set_hflip("#sprite", 1)
 	elseif message_id == hash("remove_item") then
 		self.item = hash("none")
 		play_item_flipbook(self)		

@@ -1,5 +1,5 @@
 go.property("plot_instance", hash("none"))
-
+expl_dur = .05
 function init(self)
 
 	go.set_scale(1.5)
@@ -11,6 +11,21 @@ function init(self)
 		msg.post("#sprite", "disable")
 	end
 end
+
+function explode()
+	go.set("#extraSprite", "tint.w", 1)
+	go.set("#extraSprite", "scale", vmath.vector3(.5,.5,1))
+	msg.post("#extraSprite", "play_animation", {id = hash("explosion")})
+	--sprite.play_flipbook("#extraSprite", hash("game:/board#explosion"))
+	timer.delay(1, false, function(self)
+		go.set("#extraSprite", "tint.w", 0)
+		go.set("#extraSprite", "scale", vmath.vector3(1,1,1))
+	end)
+end
+
+function hide_explosion()
+	go.set("#extraSprite", "tint.w", 0)
+end	
 
 function play_shock()
 	sprite.play_flipbook("#extraSprite", hash("shocking"))
@@ -36,6 +51,8 @@ function on_message(self, message_id, message, sender)
 		play_shock()
 	elseif message_id == hash("hide_shock") then
 		hide_shock()
+	elseif message_id == hash("play_explosion") then
+		explode()
 	elseif message_id == hash("play_flipbook") then
 		if self.plot_instance ~= nil then
 			sprite.play_flipbook("#sprite", message.id)

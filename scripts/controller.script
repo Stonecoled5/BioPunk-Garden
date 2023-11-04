@@ -21,6 +21,6 @@ function on_message(self, message_id, message, sender)
 		self.current_proxy = sender -- <10>
 		msg.post(sender, "enable") -- <11>
 	elseif message_id == hash("proxy_unloaded") then
-		print("Unloaded", sender)
+		--print("Unloaded", sender)
 	end
 end
