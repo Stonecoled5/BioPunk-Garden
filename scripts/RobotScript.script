@@ -13,13 +13,6 @@ function init(self)
 	play_item_flipbook(self)
 end
 
-local function play_animation(self, animation)
-	if self.current_animation ~= animation then
-		self.current_animation = animation
-		msg.post("#sprite", "play_animation", {id = animation})
-	end
-end	
-
 function play_item_flipbook(self)
 	if self.item ~= hash("none") then
 		sprite.play_flipbook("#itemSprite", self.item)
@@ -44,9 +37,8 @@ function on_message(self, message_id, message, sender)
 		self.item = hash(message.item)
 		msg.post("#itemSprite", "enable")
 		play_item_flipbook(self)
-	-- elseif message_id == hash("flip_bot") then
-	-- 	print("flip")
-	-- 	sprite.set_hflip("#sprite", 1)
+	elseif message_id == hash("flip_bot") then
+		sprite.set_hflip("#sprite", message.bool)
 	elseif message_id == hash("remove_item") then
 		self.item = hash("none")
 		play_item_flipbook(self)		

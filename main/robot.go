@@ -12,6 +12,11 @@ components {
     z: 0.0
     w: 1.0
   }
+  properties {
+    id: "sprite"
+    value: "sprite"
+    type: PROPERTY_TYPE_HASH
+  }
 }
 embedded_components {
   id: "sprite"

@@ -48,14 +48,16 @@ function on_message(self, message_id, message, sender)
 		gui.set_alpha(gui.get_node("black_screen"), 0)
 	elseif message_id == hash("won") then
 		gui.set_alpha(gui.get_node("black_screen"), .5)
-		gui.set_enabled(gui.get_node("won"), true)
+		gui.set_alpha(gui.get_node("won"), 1)
 		gui.set_enabled(gui.get_node("won_box"), true)
+		gui.set_enabled(gui.get_node("main_menu_button"), true)
 		gui.set_alpha(gui.get_node("main_menu"), 1)
 		gui.set_alpha(gui.get_node("won_message"), 1)
 	elseif message_id == hash("lost") then
 		gui.set_alpha(gui.get_node("black_screen"), .5)
-		gui.set_enabled(gui.get_node("lost"), true)
+		gui.set_alpha(gui.get_node("lost"), 1)
 		gui.set_enabled(gui.get_node("lost_box"), true)
+		gui.set_enabled(gui.get_node("main_menu_button"), true)
 		gui.set_alpha(gui.get_node("main_menu"), 1)
 		gui.set_alpha(gui.get_node("lost_message"), 1)
 	elseif message_id == hash("clr_color") then
