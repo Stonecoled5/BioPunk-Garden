@@ -182,6 +182,7 @@ function on_input(self, action_id, action)
 						move_robot(self, board[y][x], robots[selected_robot_index])
 				elseif can_use_pesticide(self,x,y) and is_next_to_plot(self,x,y) then
 					update_plots_on_action(self, x, y, "dirt-placeholder")
+					table.insert(emptyplots, {id = board[y][x].id, plot_instance = hash("dirt-placeholder"), x = x, y = y, })
 				elseif can_use_fertilizer(self,x,y) and is_next_to_plot(self,x,y) then
 					local texture = nil
 					if board[y][x].plot_instance == hash("dirt-placeholder") then
@@ -319,45 +320,45 @@ local function moved_to_position(robot)
 	robot.flip_num = 0
 end
 
-function shortest_path(robot, to_tile)
-	local startingpos = go.get_position(robot.id)
-	local sx = math.floor((startingpos.x - edge) / blocksize)
-	local sy = math.floor((startingpos.y - bottom_edge) / blocksize)
-	dijkstra(sx, sy, to_tile.x, to_tile.y)
-	function minDistance(dist_array, sptsetarray)
-		local min = 1000
-		local min_index = -1
-
-		for v = 1, boardwidth do
-			if sptsetarray[v] == false and dist_array[v] <= min then
-				min = dist_array[v]
-				min_index = v
-			end
-		end
-
-		return min_index;
-	end
-	function dijkstra(graph, src)
-		local dist = {} 
-		local sptSet = {}
-		for di = 0, boardwidth do
-			table.insert(dist, 1000)
-			table.insert(sptSet, false)
-		end
-		dist[src] = 0
-		for count = 0, boardwidth - 1 do
-			local u = minDistance(dist, sptSet)
-			sptSet[u] = true;
-			for v = 0, boardwidth do
-				if not sptSet[v] and graph[u][v] ~= 0
-				and dist[u] ~= 1000
-				and dist[u] + graph[u][v] < dist[v] then
-					dist[v] = dist[u] + graph[u][v]
-				end
-			end
-		return dist
-	end
-end	
+-- function shortest_path(robot, to_tile)
+-- 	local startingpos = go.get_position(robot.id)
+-- 	local sx = math.floor((startingpos.x - edge) / blocksize)
+-- 	local sy = math.floor((startingpos.y - bottom_edge) / blocksize)
+-- 	dijkstra(sx, sy, to_tile.x, to_tile.y)
+-- 	function minDistance(dist_array, sptsetarray)
+-- 		local min = 1000
+-- 		local min_index = -1
+-- 
+-- 		for v = 1, boardwidth do
+-- 			if sptsetarray[v] == false and dist_array[v] <= min then
+-- 				min = dist_array[v]
+-- 				min_index = v
+-- 			end
+-- 		end
+-- 
+-- 		return min_index;
+-- 	end
+-- 	function dijkstra(graph, src)
+-- 		local dist = {} 
+-- 		local sptSet = {}
+-- 		for di = 0, boardwidth do
+-- 			table.insert(dist, 1000)
+-- 			table.insert(sptSet, false)
+-- 		end
+-- 		dist[src] = 0
+-- 		for count = 0, boardwidth - 1 do
+-- 			local u = minDistance(dist, sptSet)
+-- 			sptSet[u] = true;
+-- 			for v = 0, boardwidth do
+-- 				if not sptSet[v] and graph[u][v] ~= 0
+-- 				and dist[u] ~= 1000
+-- 				and dist[u] + graph[u][v] < dist[v] then
+-- 					dist[v] = dist[u] + graph[u][v]
+-- 				end
+-- 			end
+-- 		return dist
+-- 	end
+-- end	
 
 function move_robot(self, to_tile, robot)
 	if robot.can_move and not robot.moving then
@@ -567,7 +568,7 @@ function grow_plants_overnight(self, handle, time_elapsed)
 			empty.plot_instance = plant
 			board[empty.y][empty.x].plot_instance = plant
 			timer.delay(.2, false, function(self)
-				msg.post(board[empty.y][empty.x].id, "play_animation", {id = hash("dirt-placeholder")})
+				msg.post(board[empty.y][empty.x].id, "play_animation", {id = plant})
 			end)
 		elseif empty.plot_instance == hash("dirt-poisoned") then
 			empty.plot_instance = hash("generic_bad_plant")
