@@ -64,6 +64,15 @@ function on_message(self, message_id, message, sender)
 		clear_color()
 	elseif message_id == hash("reset_items") then
 		reset_items()
+	elseif message_id == hash("show_info") then
+		gui.set_alpha(gui.get_node("info"), 1)
+		gui.set_text(gui.get_node("info"), message.m.info)
+		gui.set_enabled(gui.get_node("pic"), true)
+		gui.set_texture(gui.get_node("pic"), "main")
+		gui.play_flipbook(gui.get_node("pic") ,message.m.pic)
+	elseif message_id == hash("hide_info") then
+		gui.set_alpha(gui.get_node("info"), 0)
+		gui.set_enabled(gui.get_node("pic"), false)
 	end
 end
 

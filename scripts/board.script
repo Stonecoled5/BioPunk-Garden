@@ -166,10 +166,18 @@ function on_input(self, action_id, action)
 	local x = math.floor((action.x - edge) / blocksize)
 	local y = math.floor((action.y - bottom_edge) / blocksize)
 	if not action_id and can_click then
-		if turn == "move" and selected_robot_index ~= 0 and robots[selected_robot_index].can_move then
-			update_highlights(self, x, y)			
-		elseif turn == "enemy_turn" then
-			
+		if turn == "move" then
+			if selected_robot_index ~= 0 and robots[selected_robot_index].can_move then
+				update_highlights(self, x, y)
+			end
+			if board[y] and board[y][x] then
+				if board[y][x].plot_instance == hash("good-plant-placeholder") then
+					local l = require "descriptions/good_plant"
+					msg.post("game:/infoGUI", "show_info", {m = l})
+				end
+			else
+				msg.post("game:/infoGUI", "hide_info")
+			end
 		end
 	end
 	if action_id == hash("touch") and action.pressed and can_click and not robot_is_moving then
