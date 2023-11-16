@@ -496,7 +496,7 @@ function bad_guy_move(self, handle, time_elapsed)
 		timer.cancel(handle)
 		msg.post("game:/infoGUI", "darken_screen")
 		self.epi = 0
-		timer.delay(.5, true, grow_plants_overnight)
+		timer.delay(.6, true, grow_plants_overnight)
 		return
 	end
 	local tile = badplants[self.index]
