@@ -8,6 +8,7 @@ day = 1
 end_of_game = false
 can_click = true
 robot_is_moving = false
+moving_back = false
 local pathtiles = { 
 	{0,1,5,6,7,8},
 	{1,3,5},
@@ -220,6 +221,7 @@ function update_plots_on_action(self, x, y, texture)
 	robots[selected_robot_index].can_move = false
 	robots[selected_robot_index].turn_done = true
 	msg.post("game:/infoGUI", "remove_item")
+	msg.post("game:/infoGUI", "update_round_help", {m = "Repeat for each robot or click end turn"})
 	build_tilelist(self)
 	delete_highlight(self)
 end	
@@ -326,6 +328,9 @@ local function moved_to_position(robot)
 	timer.cancel(robot.handle)
 	robot.handle = nil
 	robot.flip_num = 0
+	if not moving_back then
+		msg.post("game:/infoGUI", "update_round_help", {m = "Choose a blue highlighted plot to use your item on"})
+	end
 end
 
 -- function shortest_path(robot, to_tile)
@@ -550,6 +555,7 @@ end
 	
 
 function move_robots_back(self)
+	moving_back = true
 	for i=1,#robots do
 		selected_robot_index = i
 		if not robots[i].stunned then
@@ -626,7 +632,6 @@ end
 
 function next_day(self)
 	day = day + 1
-	show_day()
 	num_pesticide = 1
 	num_steroids = 1
 	num_fertilizer = 1
@@ -642,6 +647,7 @@ function next_day(self)
 			robot.turn_done = true
 		end
 	end	
+	show_day()
 	build_tilelist(self)
 	clear_steroid_plants()
 	build_tilelist(self)
