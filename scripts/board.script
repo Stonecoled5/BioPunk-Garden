@@ -87,32 +87,14 @@ function update(self, dt)
 		end
 	end
 	if turn == "move" then
-		check_if_enemy_turn(self)
+		if is_robot_holding_item(self, hash("stunEffect"), 1) and 
+		is_robot_holding_item(self, hash("stunEffect"), 2) and
+		is_robot_holding_item(self, hash("stunEffect"), 3) and
+		all_robots_are_forever_shocked() then
+			lost(self)
+		end
 	end
 end
-
-function check_if_enemy_turn(self)
-	local playable_move = false
-	if not robots[1].turn_done or not robots[2].turn_done or not robots[3].turn_done then
-		playable_move = true
-	elseif (num_steroids > 0 or any_robots_have_item(self, "brassinosteroids-placeholder")) and 
-	is_block_on_board(self, "good-plant-placeholder") then 
-		playable_move = true
-	elseif (num_pesticide > 0 or any_robots_have_item(self, "pesticide_placeholder")) and 
-	(is_block_on_board(self, "electric-plant-placeholder") or 
-	is_block_on_board(self, "generic_bad_plant") or 
-	is_block_on_board(self, "explosive_plant_placeholder") or 
-	is_block_on_board(self, "poison_plant_placeholder")) then
-		playable_move = true
-	elseif (num_fertilizer > 0 or any_robots_have_item(self, "fertilizer_placeholder")) and
-	(is_block_on_board(self, "dirt-placeholder") or 
-	is_block_on_board(self, "dirt-poisoned")) then
-		playable_move = true
-	end
-	if not playable_move then
-		end_turn(self)
-	end	
-end	
 
 function end_turn(self)
 	turn = "enemy_turn"
@@ -150,7 +132,7 @@ local function build_tilelist(self)
 	for y, l in pairs(board) do
 		for x, b in pairs(board[y]) do
 			table.insert(tiles, { id = b.id, plot_instance = b.plot_instance, x = b.x, y = b.y })
-			if b.plot_instance == hash("good-plant-placeholder") or b.plot_instance == hash("good-plant-steroids-placeholder") then
+			if b.plot_instance == hash("good-plant-placeholder") then
 				table.insert(goodplants, { id = b.id, plot_instance = b.plot_instance, x = b.x, y = b.y })
 			elseif is_bad_plant(self, b.x, b.y) then
 				table.insert(badplants, { id = b.id, plot_instance = b.plot_instance, x = b.x, y = b.y })
@@ -662,6 +644,7 @@ function clear_steroid_plants()
 			deplot.plot_instance = hash("good-plant-placeholder")
 			board[deplot.y][deplot.x].plot_instance = hash("good-plant-placeholder")
 			msg.post(board[deplot.y][deplot.x].id, "play_animation", {id = hash("good-plant-placeholder")})
+			table.insert(goodplants, deplot)
 		end	
 	end	
 end	
@@ -741,6 +724,31 @@ function any_robots_in_viscinity(robot, tile)
 		return true
 	end
 	return false	
+end	
+
+function all_robots_are_forever_shocked()
+	local electric_lost = {false, false, false}
+	for i, robot in ipairs(robots) do
+		local pos = go.get_position(robot.id)
+		local robx = math.floor((pos.x - edge) / blocksize)
+		local roby = math.floor((pos.y - bottom_edge) / blocksize)
+		for j, tile in ipairs(badplants) do
+			if( (robx == tile.x + 1 and roby == tile.y) or 
+			(robx == tile.x - 1 and roby == tile.y) or 
+			(roby == tile.y + 1 and robx == tile.x) or 
+			(roby == tile.y - 1 and robx == tile.x) or
+			(roby == tile.y + 1 and robx == tile.x + 1) or
+			(roby == tile.y - 1 and robx == tile.x - 1) or
+			(roby == tile.y + 1 and robx == tile.x - 1) or
+			(roby == tile.y - 1 and robx == tile.x + 1) ) and
+			tile.plot_instance == hash("electric-plant-placeholder") then
+				electric_lost[i] = true
+			end
+		end
+	end
+	if electric_lost[1] and electectric_lost[2] and electric_lost[3] then
+		lost(self)
+	end
 end	
 
 function on_message(self, message_id, message, sender)
