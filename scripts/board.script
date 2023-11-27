@@ -9,6 +9,7 @@ end_of_game = false
 can_click = true
 robot_is_moving = false
 moving_back = false
+explosive_plant_exists = false
 local pathtiles = { 
 	{0,1,5,6,7,8},
 	{1,3,5},
@@ -28,6 +29,8 @@ local plots = {
 	{{x=0,y=8},{x=1,y=8},{x=1,y=7}},
 	{{x=3,y=7},{x=3,y=8},{x=4,y=8},{x=5,y=8},{x=5,y=7}}
 }
+plots_rewarded_for_pesticide = {}
+plots_rewarded_for_steroids = {}
 local goodorbadplant = { hash("good-plant-placeholder"), hash("generic_bad_plant")}
 local badplantchoices = { hash("poison_plant_placeholder"), hash("electric-plant-placeholder"), hash("explosive_plant_placeholder")} 
 turn = "move"
@@ -47,8 +50,11 @@ tiles = {}
 robots = {}
 paths = {}
 highlighted_block = {}
+enemy_highlighted_blocks = {}
 robot_items_left = {}
 poison_moving = false
+num_bad_guy_moves = 4
+bad_guys_doing_turn = {}
 
 function init(self)
 	msg.post(".", "acquire_input_focus")
@@ -94,6 +100,41 @@ function update(self, dt)
 			lost(self)
 		end
 	end
+	for i, plot in ipairs(plots) do
+		local found_bad_plant = false
+		local found_good_plant = false
+		local all_good_plants = true
+		for j, location in ipairs(plot) do
+			if not ( board[location.y][location.x].plot_instance == hash("good-plant-placeholder") or board[location.y][location.x].plot_instance == hash("good-plant-steroids-placeholder") ) then
+				all_good_plants = false
+			else
+				found_good_plant = true
+			end	
+			if is_bad_plant(self, location.x, location.y) then
+				found_bad_plant = true
+			end
+		end
+		if not found_bad_plant and found_good_plant and not table_contains(plots_rewarded_for_pesticide, i) then
+			table.insert(plots_rewarded_for_pesticide, i)
+			max_num_pesticide = max_num_pesticide + 1
+			num_pesticide = num_pesticide + 1
+		end	
+		if all_good_plants and not table_contains(plots_rewarded_for_steroids, i) then
+			table.insert(plots_rewarded_for_steroids, i)
+			max_num_steroids = max_num_steroids + 1
+			num_steroids = num_steroids + 1
+		end	
+	end	
+end
+
+function table_contains(tbl, x)
+	found = false
+	for _, v in pairs(tbl) do
+		if v == x then 
+			found = true 
+		end
+	end
+	return found
 end
 
 function end_turn(self)
@@ -311,7 +352,7 @@ local function moved_to_position(robot)
 	robot.handle = nil
 	robot.flip_num = 0
 	if not moving_back then
-		msg.post("game:/infoGUI", "update_round_help", {m = "Choose a blue highlighted plot to use your item on"})
+		msg.post("game:/infoGUI", "update_round_help", {m = "Choose a blue or red highlighted plot to use your item on"})
 	end
 end
 
@@ -457,6 +498,8 @@ function show_day()
 end
 
 function show_starting_info(self)
+	set_bad_guys_doing_turn()
+	highlight_bad_guys()
 	show_day()
 end
 
@@ -469,24 +512,38 @@ end
 
 function bad_guy_move(self, handle, time_elapsed)
 	math.randomseed(os.time())
+	local done_with_turns = false
 	if poison_moving then
 		timer.cancel(handle)
 		return
 	end	
 	self.index = self.index + 1
-	if self.index > #badplants then
+	if self.index > num_bad_guy_moves or done_with_turns then
 		timer.cancel(handle)
 		msg.post("game:/infoGUI", "darken_screen")
 		self.epi = 0
 		timer.delay(.6, true, grow_plants_overnight)
 		return
 	end
-	local tile = badplants[self.index]
+	local tile = badplants[bad_guys_doing_turn[self.index]]
+	if not tile then
+		return
+	end	
 	if tile.plot_instance == hash("generic_bad_plant") then
-		local index
-		local bpcl = #badplantchoices
-		index = math.random(bpcl)
-		local new_bad_plant = badplantchoices[index]
+		local good = false
+		local new_bad_plant = nil
+		while not good do
+			local index
+			local bpcl = #badplantchoices
+			index = math.random(bpcl)
+			new_bad_plant = badplantchoices[index]
+			if not (new_bad_plant == hash("explosive_plant_placeholder") and explosive_plant_exists) then
+				good = true
+			end
+		end	
+		if new_bad_plant == hash("explosive_plant_placeholder") then
+			explosive_plant_exists = true
+		end	
 		tile.plot_instance = new_bad_plant
 		board[tile.y][tile.x].plot_instance = hash(new_bad_plant)
 		msg.post(tile.id, "play_animation", {id = hash(new_bad_plant)})
@@ -511,6 +568,7 @@ function bad_guy_move(self, handle, time_elapsed)
 		end)
 	elseif tile.plot_instance == hash("explosive_plant_placeholder") then
 		msg.post(tile.id, "play_explosion")
+		explosive_plant_exists = false
 		timer.delay(.5, false, function(self)
 			clear_out_plot(self, tile)
 		end)
@@ -519,8 +577,8 @@ end
 
 function start_enemy_turn(self)
 	delete_highlight(self)
-	self.index = 0
 	poison_moving = false
+	self.index = 0
 	check_if_previously_stunned()
 	timer.delay(.6, true, bad_guy_move)
 end	
@@ -534,7 +592,22 @@ function check_if_previously_stunned()
 	end	
 end
 
-	
+function set_bad_guys_doing_turn()
+	math.randomseed(os.time())
+	local done = false
+	local index = 1
+	while not done do
+		local bpi 
+		bpi = math.random(#badplants)
+		if not table_contains(bad_guys_doing_turn, bpi) then
+			bad_guys_doing_turn[index] = bpi
+			index = index + 1		
+		end	
+		if index > num_bad_guy_moves then
+			done = true
+		end
+	end
+end	
 
 function move_robots_back(self)
 	moving_back = true
@@ -614,9 +687,7 @@ end
 
 function next_day(self)
 	day = day + 1
-	num_pesticide = 1
-	num_steroids = 1
-	num_fertilizer = 1
+	set_items()
 	for i, robot in ipairs(robots) do
 		robot.moving = false
 		if not robot.stunned then
@@ -633,9 +704,40 @@ function next_day(self)
 	build_tilelist(self)
 	clear_steroid_plants()
 	build_tilelist(self)
+	delete_bad_guy_highlights()
+	set_bad_guys_doing_turn()
+	highlight_bad_guys()
 	msg.post("game:/infoGUI", "clr_color")
 	msg.post("game:/infoGUI", "reset_items")
 	turn = "move"
+end	
+
+function set_items()
+	num_pesticide = max_num_pesticide
+	num_steroids = max_num_steroids
+	num_fertilizer = max_num_fertilizer
+end	
+
+function highlight_bad_guys()
+	for i,num in ipairs(bad_guys_doing_turn) do
+		enemy_p = go.get_position(badplants[num].id)
+		local enemy_highlighted_block = {}
+		enemy_highlighted_block.id = factory.create("#enemyHighlight", enemy_p)
+		enemy_highlighted_block.type = "enemy"
+		enemy_highlighted_block.x = badplants[num].x
+		enemy_highlighted_block.y = badplants[num].y
+		table.insert(enemy_highlighted_blocks, enemy_highlighted_block)
+	end	
+end	
+
+function delete_bad_guy_highlights()
+	for num, block in ipairs(enemy_highlighted_blocks) do
+		if block.id ~= nil then
+			go.delete(block.id)
+			highlighted_block = {id=nil,x=nil,y=nil,type=nil}
+		end
+	end	
+	enemy_highlighted_blocks = {}
 end	
 
 function clear_steroid_plants()

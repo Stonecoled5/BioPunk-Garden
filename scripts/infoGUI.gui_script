@@ -1,5 +1,6 @@
 local pause_clicked = false
 local select_item_text = "Select an item for that robot to carry."
+local path_space_text = "Choose a path space for the robot to go to"
 function init(self)
 	msg.post(".", "acquire_input_focus")
 	clear_color()
@@ -119,39 +120,49 @@ function on_input(self, action_id, action)
 			elseif gui.pick_node(gui.get_node("robot1Border"), action.x, action.y) then
 				selected_robot_index = 1
 				clear_color()
-				gui.set_text(gui.get_node("round_help"), select_item_text)
+				if gui.get_alpha(gui.get_node("robot1item")) == 0 then
+					gui.set_text(gui.get_node("round_help"), select_item_text)
+				else
+					gui.set_text(gui.get_node("round_help"), path_space_text)
+				end	
 				gui.set_color(gui.get_node("robot1Border"), vmath.vector3(1,1,1))
 			elseif gui.pick_node(gui.get_node("robot2Border"), action.x, action.y) then
 				selected_robot_index = 2
 				clear_color()
-				gui.set_text(gui.get_node("round_help"), select_item_text)
+				if gui.get_alpha(gui.get_node("robot2item")) == 0 then
+					gui.set_text(gui.get_node("round_help"), select_item_text)
+				else
+					gui.set_text(gui.get_node("round_help"), path_space_text)
+				end	
 				gui.set_color(gui.get_node("robot2Border"), vmath.vector3(1,1,1))
 			elseif gui.pick_node(gui.get_node("robot3Border"), action.x, action.y) then
 				selected_robot_index = 3
 				clear_color()
-				gui.set_text(gui.get_node("round_help"), select_item_text)
+				if gui.get_alpha(gui.get_node("robot3item")) == 0 then
+					gui.set_text(gui.get_node("round_help"), select_item_text)
+				else
+					gui.set_text(gui.get_node("round_help"), path_space_text)
+				end	
 				gui.set_color(gui.get_node("robot3Border"), vmath.vector3(1,1,1))
-			elseif n and gui.is_enabled(n) and gui.pick_node(gui.get_node("item1"), action.x, action.y) and 
-			not (selected_robot_index == 0) and 
-			in_shed[selected_robot_index] and
-			num_pesticide > 0 then
-				set_robot_texture(n, nundo, "pesticide_placeholder")
-			elseif n and gui.is_enabled(n) and gui.pick_node(gui.get_node("item2"), action.x, action.y) and 
-			not (selected_robot_index == 0) and 
-			in_shed[selected_robot_index] and
-			num_steroids > 0 then
-				set_robot_texture(n, nundo, "brassinosteroids-placeholder")
-			elseif n and gui.is_enabled(n) and gui.pick_node(gui.get_node("item3"), action.x, action.y) and 
-			not (selected_robot_index == 0) and 
-			in_shed[selected_robot_index] and
-			num_fertilizer > 0 then
-				set_robot_texture(n, nundo, "fertilizer-placeholder")
-			elseif nundo and gui.is_enabled(nundo) and gui.pick_node(nundo, action.x, action.y) and 
-			not (selected_robot_index == 0) and 
-			in_shed[selected_robot_index] then
-				undo_robot_texture(n, nundo)
+			elseif selected_robot_index ~= 0 and in_shed[selected_robot_index] and ( gui.pick_node(gui.get_node("item1"), action.x, action.y) or 
+			gui.pick_node(gui.get_node("item2"), action.x, action.y) or
+			gui.pick_node(gui.get_node("item3"), action.x, action.y) ) then
+				if gui.pick_node(gui.get_node("item1"), action.x, action.y) and num_pesticide > 0 then
+					set_robot_texture(n, nundo, "pesticide_placeholder")
+				elseif gui.pick_node(gui.get_node("item2"), action.x, action.y) and num_steroids > 0 then
+					set_robot_texture(n, nundo, "brassinosteroids-placeholder")
+				elseif gui.pick_node(gui.get_node("item3"), action.x, action.y) and num_fertilizer > 0 then
+					set_robot_texture(n, nundo, "fertilizer-placeholder")
+				end
 			elseif gui.pick_node(gui.get_node("end_turn_box"), action.x, action.y) then
 				msg.post("game:/board", "end_turn")
+			end
+			for i = 1, 3 do
+				local undo_node = gui.get_node("undoRobotItem" .. i)
+				local item_node = gui.get_node("robot" .. i .. "item")
+				if undo_node and gui.is_enabled(undo_node) and gui.pick_node(undo_node, action.x, action.y) and in_shed[i] then
+					undo_robot_texture(item_node, undo_node, i)
+				end
 			end
 		elseif not can_click and (pause_clicked or end_of_game) then
 			if gui.pick_node(gui.get_node("main_menu_button"), action.x, action.y) then
@@ -184,8 +195,7 @@ function set_robot_texture(n, nundo, item)
 	end	
 	robots[selected_robot_index].holding_item = true
 	robots[selected_robot_index].can_move = true
-	gui.set_text(gui.get_node("round_help"), "Choose a path space for the robot to go to")
-	gui.set_enabled(n, true)
+	gui.set_text(gui.get_node("round_help"), path_space_text)
 	gui.set_enabled(nundo, true)
 	gui.set_texture(n, "main")
 	gui.play_flipbook(n, item)
@@ -193,6 +203,9 @@ function set_robot_texture(n, nundo, item)
 end
 
 function replace_item_count(n)
+	if gui.get_alpha(n) == 0 then
+		return
+	end	
 	if gui.get_flipbook(n) == hash("brassinosteroids-placeholder") and num_steroids < max_num_steroids then
 		num_steroids = num_steroids + 1
 	elseif gui.get_flipbook(n) == hash("fertilizer-placeholder") and num_fertilizer < max_num_fertilizer then
@@ -202,7 +215,7 @@ function replace_item_count(n)
 	end	
 end	
 
-function undo_robot_texture(n, nundo)
+function undo_robot_texture(n, nundo, robot_index)
 	if gui.get_flipbook(n) == hash("pesticide_placeholder") then
 		num_pesticide = num_pesticide + 1
 	elseif gui.get_flipbook(n) == hash("brassinosteroids-placeholder") then
@@ -210,11 +223,12 @@ function undo_robot_texture(n, nundo)
 	elseif gui.get_flipbook(n) == hash("fertilizer-placeholder") then
 		num_fertilizer = num_fertilizer + 1
 	end	
+	gui.set_text(gui.get_node("round_help"), select_item_text)
 	msg.post("game:/board", "remove_item")
 	gui.set_enabled(nundo, false)
 	gui.set_alpha(n, 0)
-	robots[selected_robot_index].holding_item = false
-	robots[selected_robot_index].can_move = false
+	robots[robot_index].holding_item = false
+	robots[robot_index].can_move = false
 end
 
 function on_reload(self)
