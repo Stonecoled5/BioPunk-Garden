@@ -55,6 +55,7 @@ robot_items_left = {}
 poison_moving = false
 num_bad_guy_moves = 4
 bad_guys_doing_turn = {}
+max_amount_of_items = 3
 
 function init(self)
 	msg.post(".", "acquire_input_focus")
@@ -414,8 +415,8 @@ function build_board(self)
 	math.randomseed(os.time())
 	local pos = vmath.vector3()
 	local plant
-	local numbadplants = 14
-	local numgoodplants = 28
+	local numbadplants = 12
+	local numgoodplants = 24
 	local x = 0
 	local y = 0
 	for y = 0,boardheight-1 do
@@ -505,9 +506,10 @@ end
 
 function prepare_robots(self)
 	local pos = vmath.vector3(900,900,0)
-	robots[1] = {id = factory.create("#robotFactory", pos, null, { sprite = hash("robot"), item = hash("none") }), moving = false, in_shed = true, can_move = false, turn_done = false, holding_item = false, stunned = false, handle = nil, flip_num = 0}
-	robots[2] = {id = factory.create("#robotFactory", pos, null, { sprite = hash("blueRobot"), item = hash("none") }), moving = false, in_shed = true, can_move = false, turn_done = false, holding_item = false, stunned = false, handle = nil, flip_num = 0}
-	robots[3] = {id = factory.create("#robotFactory", pos, null, { sprite = hash("greenRobot"), item = hash("none") }), moving = false, in_shed = true, can_move = false, turn_done = false, holding_item = false, stunned = false, handle = nil, flip_num = 0}
+	local robot_sprites = {hash("robot"), hash("blueRobot"), hash("greenRobot")}
+	for i = 1, 3 do 
+		robots[i] = {id = factory.create("#robotFactory", pos, null, { sprite = robot_sprites[i], item = hash("none") }), moving = false, in_shed = true, can_move = false, turn_done = false, holding_item = false, stunned = false, handle = nil, flip_num = 0, num_item_holding = 0}
+	end
 end
 
 function bad_guy_move(self, handle, time_elapsed)

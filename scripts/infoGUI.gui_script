@@ -16,6 +16,9 @@ function update(self, dt)
 	gui.set_text(gui.get_node("item1amount"),"x" .. num_pesticide)
 	gui.set_text(gui.get_node("item2amount"),"x" .. num_steroids)
 	gui.set_text(gui.get_node("item3amount"),"x" .. num_fertilizer)
+	gui.set_text(gui.get_node("robot1ItemAmount"),"x" .. robots[1].num_item_holding)
+	gui.set_text(gui.get_node("robot2ItemAmount"),"x" .. robots[2].num_item_holding)
+	gui.set_text(gui.get_node("robot3ItemAmount"),"x" .. robots[3].num_item_holding)
 	gui.set_text(gui.get_node("numBadPlants"),"Bad Plants: " .. #badplants)
 	gui.set_text(gui.get_node("numGoodPlants"),"Good Plants: " .. #goodplants)
 end
@@ -183,14 +186,17 @@ end
 
 function set_robot_texture(n, nundo, item)
 	msg.post("game:/board", "item_selected", {item = item})
-	if item == "pesticide_placeholder" then
+	if hash(item) ~= gui.get_flipbook(n) then
 		replace_item_count(n)
+	end
+	if robots[selected_robot_index].num_item_holding < max_amount_of_items then
+		robots[selected_robot_index].num_item_holding = robots[selected_robot_index].num_item_holding + 1
+	end
+	if item == "pesticide_placeholder" then
 		num_pesticide = num_pesticide - 1
 	elseif item == "brassinosteroids-placeholder" then
-		replace_item_count(n)
 		num_steroids = num_steroids - 1
 	elseif item == "fertilizer-placeholder" then
-		replace_item_count(n)
 		num_fertilizer = num_fertilizer - 1
 	end	
 	robots[selected_robot_index].holding_item = true
@@ -207,12 +213,13 @@ function replace_item_count(n)
 		return
 	end	
 	if gui.get_flipbook(n) == hash("brassinosteroids-placeholder") and num_steroids < max_num_steroids then
-		num_steroids = num_steroids + 1
+		num_steroids = num_steroids + robots[selected_robot_index].num_item_holding
 	elseif gui.get_flipbook(n) == hash("fertilizer-placeholder") and num_fertilizer < max_num_fertilizer then
-		num_fertilizer = num_fertilizer + 1
+		num_fertilizer = num_fertilizer + robots[selected_robot_index].num_item_holding
 	elseif gui.get_flipbook(n) == hash("pesticide_placeholder") and num_pesticide < max_num_pesticide then
-		num_pesticide = num_pesticide + 1
+		num_pesticide = num_pesticide + robots[selected_robot_index].num_item_holding
 	end	
+	robots[selected_robot_index].num_item_holding = 0
 end	
 
 function undo_robot_texture(n, nundo, robot_index)
