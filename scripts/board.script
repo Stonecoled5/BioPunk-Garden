@@ -10,6 +10,8 @@ can_click = true
 robot_is_moving = false
 moving_back = false
 explosive_plant_exists = false
+repeat_message = "Repeat for each robot or click end turn"
+choose_message = "Choose a blue or red highlighted plot to use your item on"
 local pathtiles = { 
 	{0,1,5,6,7,8},
 	{1,3,5},
@@ -128,6 +130,22 @@ function update(self, dt)
 	end	
 end
 
+function can_use_item_in_viscinity(self,x,y)
+	local pos = go.get_position(robots[selected_robot_index].id)
+	local rx = math.floor((pos.x - edge) / blocksize)
+	local ry = math.floor((pos.y - bottom_edge) / blocksize)
+	local board_positions = {{x=rx,y=ry+1},{x=rx,y=ry-1},{x=rx+1,y=ry},{x=rx-1,y=ry}}
+	local can_use_item = false
+	for i, position in ipairs(board_positions) do
+		if board[position.y] and board[position.y][position.x] and ( can_use_fertilizer(self, position.x, position.y) or 
+		can_use_pesticide(self, position.x, position.y) or
+		can_use_steroids(self, position.x, position.y) ) then
+			can_use_item = true
+		end
+	end
+	return can_use_item
+end	
+
 function table_contains(tbl, x)
 	found = false
 	for _, v in pairs(tbl) do
@@ -192,7 +210,7 @@ function on_input(self, action_id, action)
 	local y = math.floor((action.y - bottom_edge) / blocksize)
 	if not action_id and can_click then
 		if turn == "move" then
-			if selected_robot_index ~= 0 and robots[selected_robot_index].can_move then
+			if selected_robot_index ~= 0 and robots[selected_robot_index].num_item_holding ~= 0 then
 				update_highlights(self, x, y)
 			end
 			if board[y] and board[y][x] then
@@ -205,7 +223,7 @@ function on_input(self, action_id, action)
 			end
 		end
 	end
-	if action_id == hash("touch") and action.pressed and can_click and not robot_is_moving then
+	if action_id == hash("touch") and action.pressed and can_click and robots[selected_robot_index] and robots[selected_robot_index].num_item_holding ~= 0 then
 		if turn == "move" then
 			if board and board[y] and board[y][x] then
 				if (board[y][x].plot_instance == hash("path-placeholder") 
@@ -213,9 +231,10 @@ function on_input(self, action_id, action)
 					and robots[selected_robot_index] 
 					and not robots[selected_robot_index].moving then
 						move_robot(self, board[y][x], robots[selected_robot_index])
-				elseif can_use_pesticide(self,x,y) and is_next_to_plot(self,x,y) then
-					update_plots_on_action(self, x, y, "dirt-placeholder")
-					table.insert(emptyplots, {id = board[y][x].id, plot_instance = hash("dirt-placeholder"), x = x, y = y, })
+					elseif can_use_pesticide(self,x,y) and is_next_to_plot(self,x,y) then
+						update_enemy_turn_indexes(self,x, y)
+						update_plots_on_action(self, x, y, "dirt-placeholder")
+						table.insert(emptyplots, {id = board[y][x].id, plot_instance = hash("dirt-placeholder"), x = x, y = y, })
 				elseif can_use_fertilizer(self,x,y) and is_next_to_plot(self,x,y) then
 					local texture = nil
 					if board[y][x].plot_instance == hash("dirt-placeholder") then
@@ -237,15 +256,56 @@ function on_input(self, action_id, action)
 	end
 end
 
+function update_enemy_turn_indexes(self,x,y)
+	local index_to_remove = 0
+	local index = 0
+	for i, idx in ipairs(bad_guys_doing_turn) do 
+		for j, bp in ipairs(badplants) do 
+			if bp.id == board[y][x].id then
+				if idx == j then
+					index_to_remove = i
+				end
+				index = j
+			end
+		end
+	end
+	table.remove(badplants,index)
+	for i, idx in ipairs(bad_guys_doing_turn) do
+		if index ~= 0 and idx > index then
+			bad_guys_doing_turn[i] = bad_guys_doing_turn[i] - 1
+		end
+	end
+	--index = index-1
+	if bad_guys_doing_turn[index_to_remove] then
+		for num, block in ipairs(enemy_highlighted_blocks) do
+			if block.id ~= nil and block.x == x and block.y == y then
+				go.delete(block.id)
+				enemy_highlighted_blocks[num] = {id=nil,x=nil,y=nil,type=nil}
+			end
+		end	
+		table.remove(bad_guys_doing_turn, index_to_remove)
+		self.index = self.index - 1
+	end
+end	
+
 function update_plots_on_action(self, x, y, texture)
 	board[y][x].plot_instance = hash(texture)
 	go.set(msg.url(nil, board[y][x].id, "tile"), hash("plot_instance"), hash(texture))
 	msg.post(board[y][x].id, "play_flipbook", {id = hash(texture)})
-	msg.post(robots[selected_robot_index].id, "remove_item")
 	robots[selected_robot_index].can_move = false
-	robots[selected_robot_index].turn_done = true
-	msg.post("game:/infoGUI", "remove_item")
-	msg.post("game:/infoGUI", "update_round_help", {m = "Repeat for each robot or click end turn"})
+	robots[selected_robot_index].num_item_holding = robots[selected_robot_index].num_item_holding - 1
+	if not can_use_item_in_viscinity(self, x, y) then
+		robots[selected_robot_index].turn_done = true
+	end
+	if robots[selected_robot_index].num_item_holding == 0 or robots[selected_robot_index].turn_done then
+		msg.post(robots[selected_robot_index].id, "remove_item")
+		msg.post("game:/infoGUI", "remove_item")
+		robots[selected_robot_index].turn_done = true
+		robots[selected_robot_index].num_item_holding = 0
+		msg.post("game:/infoGUI", "update_round_help", {m = repeat_message})
+	else
+		msg.post("game:/infoGUI", "update_round_help", {m = choose_message})
+	end
 	build_tilelist(self)
 	delete_highlight(self)
 end	
@@ -267,7 +327,9 @@ function update_highlights(self, x, y)
 				if highlighted_block.id and highlighted_block.type == "plot" then
 					delete_highlight(self)
 				end
-				create_highlight(self, "#pathHighlight", p, "path", x, y)
+				if robots[selected_robot_index].can_move then
+					create_highlight(self, "#pathHighlight", p, "path", x, y)
+				end
 			elseif not (x == highlighted_block.x) or not (y == highlighted_block.y) then
 				delete_highlight(self)
 			end
@@ -276,7 +338,9 @@ function update_highlights(self, x, y)
 				delete_highlight(self)
 			elseif not highlighted_block.id then
 				local shed_dis = edge + (boardwidth-1)*blocksize
-				create_highlight(self, "#shedHighlight", vmath.vector3(shed_dis,shed_dis,1), "shed", x, y)
+				if robots[selected_robot_index].can_move then
+					create_highlight(self, "#shedHighlight", vmath.vector3(shed_dis,shed_dis,1), "shed", x, y)
+				end
 			end
 		elseif highlighted_block.id then
 			delete_highlight(self)
@@ -353,7 +417,7 @@ local function moved_to_position(robot)
 	robot.handle = nil
 	robot.flip_num = 0
 	if not moving_back then
-		msg.post("game:/infoGUI", "update_round_help", {m = "Choose a blue or red highlighted plot to use your item on"})
+		msg.post("game:/infoGUI", "update_round_help", {m = choose_message})
 	end
 end
 
@@ -520,10 +584,10 @@ function bad_guy_move(self, handle, time_elapsed)
 		return
 	end	
 	self.index = self.index + 1
-	if self.index > num_bad_guy_moves or done_with_turns then
+	if self.index > #bad_guys_doing_turn or done_with_turns then
 		timer.cancel(handle)
 		msg.post("game:/infoGUI", "darken_screen")
-		self.epi = 0
+		self.epi = 1
 		timer.delay(.6, true, grow_plants_overnight)
 		return
 	end
@@ -582,7 +646,7 @@ function start_enemy_turn(self)
 	poison_moving = false
 	self.index = 0
 	check_if_previously_stunned()
-	timer.delay(.6, true, bad_guy_move)
+	timer.delay(.8, true, bad_guy_move)
 end	
 
 function check_if_previously_stunned()
@@ -626,10 +690,13 @@ function move_robots_back(self)
 		next_day(self)
 	end
 end	
-
 function grow_plants_overnight(self, handle, time_elapsed)
 	math.randomseed(os.time())
-	self.epi = self.epi + 1
+	if self.epi > #emptyplots or #emptyplots == 0 then
+		timer.cancel(handle)
+		move_robots_back(self)
+		return
+	end
 	if #emptyplots > 0 then
 		local empty = emptyplots[self.epi]
 		if empty.plot_instance == hash("dirt-placeholder") then
@@ -637,28 +704,20 @@ function grow_plants_overnight(self, handle, time_elapsed)
 			gdpi = math.random(#goodorbadplant)
 			plant = goodorbadplant[gdpi]
 			empty.plot_instance = plant
+			print(plant)
 			board[empty.y][empty.x].plot_instance = plant
-			timer.delay(.2, false, function(self)
-				msg.post(board[empty.y][empty.x].id, "play_animation", {id = plant})
-			end)
+			msg.post(board[empty.y][empty.x].id, "play_animation", {id = plant})
 		elseif empty.plot_instance == hash("dirt-poisoned") then
 			empty.plot_instance = hash("generic_bad_plant")
 			board[empty.y][empty.x].plot_instance = hash("generic_bad_plant")
-			timer.delay(.2, false, function(self)
-				msg.post(board[empty.y][empty.x].id, "play_animation", {id = hash("generic_bad_plant")})
-			end)
+			msg.post(board[empty.y][empty.x].id, "play_animation", {id = hash("generic_bad_plant")})
 		elseif empty.plot_instance == hash("fertilized-dirt") then
 			empty.plot_instance = hash("good-plant-placeholder")
 			board[empty.y][empty.x].plot_instance = hash("good-plant-placeholder")
-			timer.delay(.2, false, function(self)
-				msg.post(board[empty.y][empty.x].id, "play_animation", {id = hash("good-plant-placeholder")})
-			end)
+			msg.post(board[empty.y][empty.x].id, "play_animation", {id = hash("good-plant-placeholder")})
 		end
-	end	
-	if self.epi == #emptyplots or #emptyplots == 0 then
-		timer.cancel(handle)
-		move_robots_back(self)
 	end
+	self.epi = self.epi + 1
 end	
 
 function check_if_win_day(self)
@@ -705,7 +764,6 @@ function next_day(self)
 	show_day()
 	build_tilelist(self)
 	clear_steroid_plants()
-	build_tilelist(self)
 	delete_bad_guy_highlights()
 	set_bad_guys_doing_turn()
 	highlight_bad_guys()
@@ -718,6 +776,9 @@ function set_items()
 	num_pesticide = max_num_pesticide
 	num_steroids = max_num_steroids
 	num_fertilizer = max_num_fertilizer
+	for i, robot in ipairs(robots) do 
+		robot.num_item_holding = 0
+	end
 end	
 
 function highlight_bad_guys()
@@ -736,7 +797,6 @@ function delete_bad_guy_highlights()
 	for num, block in ipairs(enemy_highlighted_blocks) do
 		if block.id ~= nil then
 			go.delete(block.id)
-			highlighted_block = {id=nil,x=nil,y=nil,type=nil}
 		end
 	end	
 	enemy_highlighted_blocks = {}
@@ -766,7 +826,7 @@ function poison_done_moving(self, poison, goodplant)
 	board[goodplant.y][goodplant.x].plot_instance = hash("dirt-poisoned")
 	msg.post(goodplant.id, "play_animation", {id = hash("dirt-poisoned")})
 	delete_highlight(self)
-	timer.delay(.6, true, bad_guy_move)
+	timer.delay(.8, true, bad_guy_move)
 end	
 
 function electric_plant_done(tile, self)
@@ -791,10 +851,7 @@ function clear_out_plot(self, tile)
 				if board[plot_space.y][plot_space.x].plot_instance ~= hash("good-plant-steroids-placeholder") then
 					for u, bPlant in ipairs(badplants) do
 						if bPlant.id == board[plot_space.y][plot_space.x].id then
-							table.remove(badplants,u)
-							if plot_space.y < tile.y or (plot_space.y == tile.y and plot_space.x <= tile.x)then
-								self.index = self.index-1
-							end
+							update_enemy_turn_indexes(self,plot_space.x, plot_space.y)
 							break
 						end	
 					end	
