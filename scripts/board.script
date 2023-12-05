@@ -692,7 +692,6 @@ function move_robots_back(self)
 end	
 function grow_plants_overnight(self, handle, time_elapsed)
 	math.randomseed(os.time())
-	print(#emptyplots)	
 	if self.epi > #emptyplots or #emptyplots == 0 then
 		timer.cancel(handle)
 		move_robots_back(self)
@@ -705,7 +704,6 @@ function grow_plants_overnight(self, handle, time_elapsed)
 			gdpi = math.random(#goodorbadplant)
 			plant = goodorbadplant[gdpi]
 			empty.plot_instance = plant
-			print(plant)
 			board[empty.y][empty.x].plot_instance = plant
 			msg.post(board[empty.y][empty.x].id, "play_animation", {id = plant})
 		elseif empty.plot_instance == hash("dirt-poisoned") then
