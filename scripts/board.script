@@ -61,6 +61,7 @@ max_amount_of_items = 3
 
 function init(self)
 	msg.post(".", "acquire_input_focus")
+	self.index = 0
 	build_board(self)
 	prepare_robots(self)
 	show_starting_info(self)
@@ -234,7 +235,6 @@ function on_input(self, action_id, action)
 					elseif can_use_pesticide(self,x,y) and is_next_to_plot(self,x,y) then
 						update_enemy_turn_indexes(self,x, y)
 						update_plots_on_action(self, x, y, "dirt-placeholder")
-						table.insert(emptyplots, {id = board[y][x].id, plot_instance = hash("dirt-placeholder"), x = x, y = y, })
 				elseif can_use_fertilizer(self,x,y) and is_next_to_plot(self,x,y) then
 					local texture = nil
 					if board[y][x].plot_instance == hash("dirt-placeholder") then
@@ -692,13 +692,14 @@ function move_robots_back(self)
 end	
 function grow_plants_overnight(self, handle, time_elapsed)
 	math.randomseed(os.time())
+	print(#emptyplots)	
 	if self.epi > #emptyplots or #emptyplots == 0 then
 		timer.cancel(handle)
 		move_robots_back(self)
 		return
-	end
-	if #emptyplots > 0 then
+	elseif #emptyplots > 0 and not (self.epi > #emptyplots) then
 		local empty = emptyplots[self.epi]
+		
 		if empty.plot_instance == hash("dirt-placeholder") then
 			local gbpi 
 			gdpi = math.random(#goodorbadplant)
