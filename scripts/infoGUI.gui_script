@@ -72,18 +72,26 @@ function on_message(self, message_id, message, sender)
 	elseif message_id == hash("reset_items") then
 		reset_items()
 	elseif message_id == hash("show_info") then
-		gui.set_alpha(gui.get_node("info"), 1)
-		gui.set_text(gui.get_node("info"), message.m.info)
-		gui.set_enabled(gui.get_node("pic"), true)
-		gui.set_texture(gui.get_node("pic"), "main")
-		gui.play_flipbook(gui.get_node("pic") ,message.m.pic)
+		show_info(message.m.info, message.m.pic)
 	elseif message_id == hash("hide_info") then
-		gui.set_alpha(gui.get_node("info"), 0)
-		gui.set_enabled(gui.get_node("pic"), false)
+		hide_info()
 	elseif message_id == hash("update_round_help") then
 		gui.set_text(gui.get_node("round_help"), message.m)
 	end
 end
+
+function show_info(info, pic)
+	gui.set_alpha(gui.get_node("info"), 1)
+	gui.set_text(gui.get_node("info"), info)
+	gui.set_enabled(gui.get_node("pic"), true)
+	gui.set_texture(gui.get_node("pic"), "main")
+	gui.play_flipbook(gui.get_node("pic"), pic)
+end	
+
+function hide_info()
+	gui.set_alpha(gui.get_node("info"), 0)
+	gui.set_enabled(gui.get_node("pic"), false)
+end	
 
 function clear_color()
 	gui.set_color(gui.get_node("robot1Border"), vmath.vector3(0,0,0))
@@ -187,6 +195,25 @@ function on_input(self, action_id, action)
 				gui.set_alpha(gui.get_node("continue"), 0)
 			end
 		end
+	elseif not action_id and can_click then
+		if gui.pick_node(gui.get_node("item1"), action.x, action.y) then
+			local desc = require "descriptions/pesticide"
+			show_info(desc.info, desc.pic)
+		elseif gui.pick_node(gui.get_node("item2"), action.x, action.y) then
+			local desc = require "descriptions/steroids"
+			show_info(desc.info, desc.pic)
+		elseif gui.pick_node(gui.get_node("item3"), action.x, action.y) then
+			local desc = require "descriptions/fertilizer"
+			show_info(desc.info, desc.pic)
+		elseif gui.pick_node(gui.get_node("robot1Border"), action.x, action.y) or 
+		gui.pick_node(gui.get_node("robot2Border"), action.x, action.y) or 
+		gui.pick_node(gui.get_node("robot3Border"), action.x, action.y) then
+			local desc = require "descriptions/robot"
+			show_info(desc.info, desc.pic)
+		elseif not gui.pick_node(gui.get_node("board"), action.x, action.y) then
+			print("hidden")
+			hide_info()
+		end
 	end
 end
 
@@ -245,10 +272,4 @@ function undo_robot_texture(n, nundo, robot_index)
 	robots[robot_index].holding_item = false
 	robots[robot_index].can_move = false
 	robots[robot_index].num_item_holding = 0
-end
-
-function on_reload(self)
-	-- Add reload-handling code here
-	-- Learn more: https://defold.com/manuals/hot-reload/
-	-- Remove this function if not needed
 end
