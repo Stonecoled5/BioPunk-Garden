@@ -700,7 +700,7 @@ function set_bad_guys_doing_turn()
 			bad_guys_doing_turn[index] = bpi
 			index = index + 1		
 		end	
-		if index > num_bad_guy_moves then
+		if index > num_bad_guy_moves or #bad_guys_doing_turn == #badplants then
 			done = true
 		end
 	end

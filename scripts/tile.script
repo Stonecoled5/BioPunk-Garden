@@ -2,7 +2,6 @@ go.property("plot_instance", hash("none"))
 expl_dur = .05
 function init(self)
 
-	go.set_scale(1.5)
 	sprite.play_flipbook("#extraSprite", hash("shocking"))
 	go.set("#extraSprite", "tint.w", 0)
 	if self.plot_instance ~= nil then

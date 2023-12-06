@@ -15,10 +15,6 @@ images {
   sprite_trim_mode: SPRITE_TRIM_MODE_OFF
 }
 images {
-  image: "/assets/images/electric-plant-placeholder.jpg"
-  sprite_trim_mode: SPRITE_TRIM_MODE_OFF
-}
-images {
   image: "/assets/images/explosive_plant_placeholder.png"
   sprite_trim_mode: SPRITE_TRIM_MODE_OFF
 }
@@ -28,14 +24,6 @@ images {
 }
 images {
   image: "/assets/images/generic_bad_plant.png"
-  sprite_trim_mode: SPRITE_TRIM_MODE_OFF
-}
-images {
-  image: "/assets/images/good-plant-placeholder.jpg"
-  sprite_trim_mode: SPRITE_TRIM_MODE_OFF
-}
-images {
-  image: "/assets/images/path-placeholder.jpg"
   sprite_trim_mode: SPRITE_TRIM_MODE_OFF
 }
 images {
@@ -168,6 +156,18 @@ images {
 }
 images {
   image: "/assets/images/end_turn_button.png"
+  sprite_trim_mode: SPRITE_TRIM_MODE_OFF
+}
+images {
+  image: "/assets/images/electric-plant-placeholder.png"
+  sprite_trim_mode: SPRITE_TRIM_MODE_OFF
+}
+images {
+  image: "/assets/images/good-plant-placeholder.png"
+  sprite_trim_mode: SPRITE_TRIM_MODE_OFF
+}
+images {
+  image: "/assets/images/path-placeholder.png"
   sprite_trim_mode: SPRITE_TRIM_MODE_OFF
 }
 animations {
