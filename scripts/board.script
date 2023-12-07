@@ -255,34 +255,40 @@ function on_input(self, action_id, action)
 			end
 		end
 	end
-	if action_id == hash("touch") and action.pressed and can_click and robots[selected_robot_index] and robots[selected_robot_index].num_item_holding ~= 0 then
+	if action_id == hash("touch") and action.pressed and can_click and robots[selected_robot_index] then
 		if turn == "move" then
 			if board and board[y] and board[y][x] then
-				if (board[y][x].plot_instance == hash("path-placeholder") 
-					or is_on_shed(self,x,y))
-					and robots[selected_robot_index] 
-					and not robots[selected_robot_index].moving then
-						move_robot(self, board[y][x], robots[selected_robot_index])
+				if robots[selected_robot_index].num_item_holding ~= 0 then
+					if (board[y][x].plot_instance == hash("path-placeholder") 
+						or is_on_shed(self,x,y))
+						and robots[selected_robot_index] 
+						and not robots[selected_robot_index].moving then
+							move_robot(self, board[y][x], robots[selected_robot_index])
 					elseif can_use_pesticide(self,x,y) and is_next_to_plot(self,x,y) then
 						update_enemy_turn_indexes(self,x, y)
 						update_plots_on_action(self, x, y, "dirt-placeholder")
-				elseif can_use_fertilizer(self,x,y) and is_next_to_plot(self,x,y) then
-					local texture = nil
-					if board[y][x].plot_instance == hash("dirt-placeholder") then
-						texture = "fertilized-dirt"
-					elseif board[y][x].plot_instance == hash("dirt-poisoned") then
-						texture = "dirt-placeholder"
-					end
-					update_plots_on_action(self, x, y, texture)
-				elseif can_use_steroids(self,x,y) and is_next_to_plot(self,x,y) then
-					update_plots_on_action(self, x, y, "good-plant-steroids-placeholder")
-					for t, pldegood in ipairs(goodplants) do
-						if pldegood.id == board[y][x].id then
-							table.remove(goodplants,t)
+					elseif can_use_fertilizer(self,x,y) and is_next_to_plot(self,x,y) then
+						local texture = nil
+						if board[y][x].plot_instance == hash("dirt-placeholder") then
+							texture = "fertilized-dirt"
+						elseif board[y][x].plot_instance == hash("dirt-poisoned") then
+							texture = "dirt-placeholder"
 						end
+						update_plots_on_action(self, x, y, texture)
+					elseif can_use_steroids(self,x,y) and is_next_to_plot(self,x,y) then
+						update_plots_on_action(self, x, y, "good-plant-steroids-placeholder")
+						for t, pldegood in ipairs(goodplants) do
+							if pldegood.id == board[y][x].id then
+								table.remove(goodplants,t)
+							end
+						end
+					else
+						sound.play("#negativeClick")
 					end
+				else
+					sound.play("#negativeClick")
 				end
-			end	
+			end
 		end
 	end
 end
@@ -443,8 +449,18 @@ end
 
 local function moved_to_position(robot)
 	robot.moving = false
-	robot_is_moving = false
-	sound.stop("#robotWalk")
+	moving_robot = false
+	for i, robot in ipairs(robots) do
+		if robot.moving then
+			moving_robot = true
+		end	
+	end	
+	if moving_robot then
+		robot_is_moving = true
+	else
+		robot_is_moving = false
+		sound.stop("#robotWalk")
+	end	
 	timer.cancel(robot.handle)
 	robot.handle = nil
 	robot.flip_num = 0
@@ -495,7 +511,7 @@ end
 
 function move_robot(self, to_tile, robot)
 	if robot.can_move and not robot.moving then
-		if not moving_back then
+		if not moving_back and not robot_is_moving then
 			sound.play("#robotWalk")
 		end
 		robot_is_moving = true
@@ -715,6 +731,7 @@ end
 
 function move_robots_back(self)
 	moving_back = true
+	playing_sound = false
 	for i=1,#robots do
 		selected_robot_index = i
 		if not robots[i].stunned then
@@ -722,7 +739,8 @@ function move_robots_back(self)
 			pos = go.get_position(robots[i].id)
 			local robx = math.floor((pos.x - edge) / blocksize)
 			local roby = math.floor((pos.y - bottom_edge) / blocksize)
-			if not is_on_shed(self, robx, roby) then
+			if not is_on_shed(self, robx, roby) and not playing_sound then
+				playing_sound = true
 				sound.play("#robotWalk")
 			end
 			move_robot(self, board[boardheight-1][boardwidth-1], robots[i])

@@ -111,8 +111,7 @@ function reset_items()
 end	
 
 function on_input(self, action_id, action)
-	if action_id == hash("touch") and action.pressed then 
-		sound.play("#neutralClick")
+	if action_id == hash("touch") and action.pressed then
 		if can_click then
 			local robot_item = "robot" .. selected_robot_index .. "item"
 			local undo_button = "undoRobotItem" .. selected_robot_index
@@ -123,6 +122,7 @@ function on_input(self, action_id, action)
 				nundo = gui.get_node(undo_button)
 			end
 			if gui.pick_node(gui.get_node("pause"), action.x, action.y) then
+				sound.play("#neutralClick")
 				can_click = false
 				pause_clicked = true
 				msg.post("game:/board", "can_click", {bool=false})
@@ -138,8 +138,10 @@ function on_input(self, action_id, action)
 					sound.play("#negativeClick")
 					gui.set_text(gui.get_node("round_help"), repeat_message)
 				elseif gui.get_alpha(gui.get_node("robot1item")) == 0 then
+					sound.play("#neutralClick")
 					gui.set_text(gui.get_node("round_help"), select_item_text)
 				else
+					sound.play("#neutralClick")
 					gui.set_text(gui.get_node("round_help"), path_space_text)
 				end	
 				gui.set_color(gui.get_node("robot1Border"), vmath.vector3(1,1,1))
@@ -150,8 +152,10 @@ function on_input(self, action_id, action)
 					sound.play("#negativeClick")
 					gui.set_text(gui.get_node("round_help"), repeat_message)
 				elseif gui.get_alpha(gui.get_node("robot2item")) == 0 then
+					sound.play("#neutralClick")
 					gui.set_text(gui.get_node("round_help"), select_item_text)
 				else
+					sound.play("#neutralClick")
 					gui.set_text(gui.get_node("round_help"), path_space_text)
 				end	
 				gui.set_color(gui.get_node("robot2Border"), vmath.vector3(1,1,1))
@@ -162,8 +166,10 @@ function on_input(self, action_id, action)
 					sound.play("#negativeClick")
 					gui.set_text(gui.get_node("round_help"), repeat_message)
 				elseif gui.get_alpha(gui.get_node("robot3item")) == 0 then
+					sound.play("#neutralClick")
 					gui.set_text(gui.get_node("round_help"), select_item_text)
 				else
+					sound.play("#neutralClick")
 					gui.set_text(gui.get_node("round_help"), path_space_text)
 				end	
 				gui.set_color(gui.get_node("robot3Border"), vmath.vector3(1,1,1))
@@ -171,12 +177,19 @@ function on_input(self, action_id, action)
 			gui.pick_node(gui.get_node("item2"), action.x, action.y) or
 			gui.pick_node(gui.get_node("item3"), action.x, action.y) ) then
 				if gui.pick_node(gui.get_node("item1"), action.x, action.y) and num_pesticide > 0 then
+					sound.play("#neutralClick")
 					set_robot_texture(n, nundo, "pesticide_placeholder")
 				elseif gui.pick_node(gui.get_node("item2"), action.x, action.y) and num_steroids > 0 then
+					sound.play("#neutralClick")
 					set_robot_texture(n, nundo, "brassinosteroids-placeholder")
 				elseif gui.pick_node(gui.get_node("item3"), action.x, action.y) and num_fertilizer > 0 then
+					sound.play("#neutralClick")
 					set_robot_texture(n, nundo, "fertilizer-placeholder")
 				end
+			elseif selected_robot_index ~= 0 and not in_shed[selected_robot_index] and ( gui.pick_node(gui.get_node("item1"), action.x, action.y) or 
+			gui.pick_node(gui.get_node("item2"), action.x, action.y) or
+			gui.pick_node(gui.get_node("item3"), action.x, action.y) ) then
+				sound.play("#negativeClick")
 			elseif gui.pick_node(gui.get_node("end_turn_box"), action.x, action.y) then
 				sound.play("#positiveClick")
 				msg.post("game:/board", "end_turn")
@@ -186,13 +199,16 @@ function on_input(self, action_id, action)
 				local undo_node = gui.get_node("undoRobotItem" .. i)
 				local item_node = gui.get_node("robot" .. i .. "item")
 				if undo_node and gui.is_enabled(undo_node) and gui.pick_node(undo_node, action.x, action.y) and in_shed[i] then
+					sound.play("#neutralClick")
 					undo_robot_texture(item_node, undo_node, i)
 				end
 			end
 		elseif not can_click and (pause_clicked or end_of_game) then
 			if gui.pick_node(gui.get_node("main_menu_button"), action.x, action.y) then
+				sound.play("#neutralClick")
 				msg.post("main:/controller", "show_menu")
 			elseif gui.is_enabled(gui.get_node("continue_button")) and gui.pick_node(gui.get_node("continue_button"), action.x, action.y) then
+				sound.play("#neutralClick")
 				can_click = true
 				pause_clicked = false
 				msg.post("game:/board", "can_click", {bool=true})
