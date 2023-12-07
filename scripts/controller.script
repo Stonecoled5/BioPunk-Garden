@@ -10,12 +10,19 @@ function init(self)
 	msg.post(".", "acquire_input_focus") -- <1>
 	self.current_proxy = nil -- <2>
 	msg.post("#", "show_menu") -- <3>
+	-- start playing ambience sound
+	sound.play("#ambience")
 end
 
 function on_message(self, message_id, message, sender)
 	if message_id == hash("show_menu") then -- <4>
+		-- stops music when exiting to the main menu
+		sound.stop("#music")
 		show(self, "#main_menu")
 	elseif message_id == hash("show_game") then
+		-- start playing background music
+		sound.play("#gameStart")
+		sound.play("#music")
 		show(self, "#gameproxy")
 	elseif message_id == hash("proxy_loaded") then -- <9>
 		self.current_proxy = sender -- <10>

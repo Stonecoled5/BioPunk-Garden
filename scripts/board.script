@@ -444,6 +444,7 @@ end
 local function moved_to_position(robot)
 	robot.moving = false
 	robot_is_moving = false
+	sound.stop("#robotWalk")
 	timer.cancel(robot.handle)
 	robot.handle = nil
 	robot.flip_num = 0
@@ -494,6 +495,9 @@ end
 
 function move_robot(self, to_tile, robot)
 	if robot.can_move and not robot.moving then
+		if not moving_back then
+			sound.play("#robotWalk")
+		end
 		robot_is_moving = true
 		robot.moving = true
 		robot.handle = timer.delay(.4, true, function() 
@@ -655,15 +659,18 @@ function bad_guy_move(self, handle, time_elapsed)
 			poison_plant_pos = go.get_position(tile.id)
 			local poison = {id = factory.create("#poisonFactory", vmath.vector3(poison_plant_pos.x, poison_plant_pos.y, 0))}
 			go.animate(poison.id, "position", go.PLAYBACK_ONCE_FORWARD, target_p, go.EASING_LINEAR, 2, 0, function() poison_done_moving(self, poison, goodplant) end)	
-			poison_moving = true		
+			poison_moving = true	
+			sound.play("#poisonShot")	
 		end
 	elseif tile.plot_instance == hash("electric-plant-placeholder") then
+		sound.play("#shock")
 		msg.post(tile.id, "show_shock")
 		msg.post(tile.id, "rotate_shock")
 		timer.delay(.8, false, function(self)
 			electric_plant_done(tile, self)
 		end)
 	elseif tile.plot_instance == hash("explosive_plant_placeholder") then
+		sound.play("#plantExplosion")
 		msg.post(tile.id, "play_explosion")
 		explosive_plant_exists = false
 		timer.delay(.5, false, function(self)
@@ -712,6 +719,12 @@ function move_robots_back(self)
 		selected_robot_index = i
 		if not robots[i].stunned then
 			robots[i].can_move = true
+			pos = go.get_position(robots[i].id)
+			local robx = math.floor((pos.x - edge) / blocksize)
+			local roby = math.floor((pos.y - bottom_edge) / blocksize)
+			if not is_on_shed(self, robx, roby) then
+				sound.play("#robotWalk")
+			end
 			move_robot(self, board[boardheight-1][boardwidth-1], robots[i])
 		end
 	end
