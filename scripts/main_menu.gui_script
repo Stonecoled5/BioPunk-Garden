@@ -13,7 +13,6 @@
 -- 		gui.animate(node, gui.PROP_COLOR, to_color, gui.EASING_OUT, 1.2, 0.1)
 -- 	end
 -- end
-
 local function anim4(self, node)
 	-- animate scale to 100%
 	local s = 1

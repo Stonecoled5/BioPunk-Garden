@@ -1,5 +1,5 @@
 [project]
-title = Biopunk Garden
+title = Biopunk-Garden
 dependencies#0 = https://github.com/subsoap/defos/archive/master.zip
 
 [bootstrap]
