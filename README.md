@@ -1,19 +1,10 @@
-# Welcome to Defold
+# BioPunk Garden
 
-This project was created from the "desktop" project template. This means that the settings in ["game.project"](defold://open?path=/game.project) have been changed to be suitable for a desktop game:
+This project was created using Defold in the Lua language:
 
-- The screen size is set to 1280x720
-- Projection is set to Fixed Fit
-- macOS and Windows icons are set
-- Mouse clicks are bound to action "touch"
-- A simple script in a game object is set up to receive and react to input
+Welcome to BioPunk Garden! In this survival turn based game you are trying to protect your garden against some evil plants. Make sure to eliminate them all before they eliminate your good plants first!
+[Link](https://thestoneman5.itch.io/biopunk-garden) to learn about and play the game
 
-[Build and run](defold://build) to see it in action. You can of course alter these settings to fit your needs.
-
-Check out [the documentation pages](https://defold.com/learn) for examples, tutorials, manuals and API docs.
-
-If you run into trouble, help is available in [our forum](https://forum.defold.com).
-
-Happy Defolding!
+I hope you enjoy!
 
 ---
